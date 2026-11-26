@@ -37,21 +37,26 @@ def make_docx(path: Path, paras: list[tuple[str | None, str]]) -> None:
         z.writestr("word/document.xml", xml)
 
 
-def make_xlsx(path: Path, sheet: str, rows: list[list[str | float]], rels: bool = True) -> None:
-    """sharedStrings 方式：字符串进 sst，数字内联。rels=False 模拟缺 worksheet 关系的非标准生成器。"""
+def make_xlsx(path: Path, sheet: str, rows: list[list[str | float | None]], rels: bool = True,
+              target: str = "worksheets/sheet1.xml") -> None:
+    """sharedStrings 方式：字符串进 sst，数字内联，None 跳格（稀疏行列）。
+    rels=False 模拟缺 worksheet 关系的非标准生成器；target 可改自定义文件名。"""
     strings, idx = [], {}
     grid = []
-    for row in rows:
+    for ri, row in enumerate(rows, 1):
         cells = []
-        for v in row:
+        for ci, v in enumerate(row, 1):
+            if v is None:
+                continue   # 稀疏：Excel 里空格不产生 <c>
+            ref = f"{chr(64 + ci)}{ri}" if ci <= 26 else f"A{ri}"
             if isinstance(v, str):
                 if v not in idx:
                     idx[v] = len(strings)
                     strings.append(v)
-                cells.append(f'<c t="s"><v>{idx[v]}</v></c>')
+                cells.append(f'<c r="{ref}" t="s"><v>{idx[v]}</v></c>')
             else:
-                cells.append(f"<c><v>{v}</v></c>")
-        grid.append(f"<row>{''.join(cells)}</row>")
+                cells.append(f'<c r="{ref}"><v>{v}</v></c>')
+        grid.append(f'<row r="{ri}">{"".join(cells)}</row>')
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("xl/workbook.xml",
                    f'<?xml version="1.0"?><workbook {S_NS} {R_NS}><sheets>'
@@ -60,11 +65,11 @@ def make_xlsx(path: Path, sheet: str, rows: list[list[str | float]], rels: bool 
             z.writestr("xl/_rels/workbook.xml.rels",
                        '<?xml version="1.0"?><Relationships '
                        'xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                       '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
+                       '<Relationship Id="rId1" Target="' + target + '"/></Relationships>')
         z.writestr("xl/sharedStrings.xml",
                    '<?xml version="1.0"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
                    + "".join(f"<si><t>{s}</t></si>" for s in strings) + "</sst>")
-        z.writestr("xl/worksheets/sheet1.xml",
+        z.writestr("xl/worksheets/" + target.rsplit("/", 1)[-1],
                    f'<?xml version="1.0"?><worksheet {S_NS}><sheetData>{"".join(grid)}</sheetData></worksheet>')
 
 
@@ -139,6 +144,40 @@ def test_broken_docx_does_not_kill_cards(kb: Path, tmp_path: Path):
     bodies = {c.read_text(encoding="utf-8") for c in (kb / "staging").glob("*.md")}
     assert any("有效条目" in b for b in bodies), "其余文件必须照常建卡"
     assert any("需 OCR" in b for b in bodies), "坏 docx 归入需 OCR 路径"
+
+
+def test_xlsx_standard_rels_custom_target(kb: Path, tmp_path: Path):
+    """F1 锁：标准 rels（无前缀 Id）+ 自定义 Target 名 → rmap 命中，不依赖 sheetN 命名惯例。"""
+    make_xlsx(tmp_path / "docs" / "c.xlsx", "表", [["甲"]], target="worksheets/custom-data.xml")
+    run("scan", str(tmp_path / "docs"), cwd=kb)
+    r = run("cards", cwd=kb)
+    assert r.returncode == 0, r.stderr
+    assert "甲" in (kb / "raw" / "docs" / "c.xlsx.md").read_text(encoding="utf-8")
+
+
+def test_xlsx_sparse_row_alignment(kb: Path, tmp_path: Path):
+    """F2 锁：B 列空缺（无 <c>）→ 按 r 属性归位，不得左移错位。"""
+    make_xlsx(tmp_path / "docs" / "d.xlsx", "表", [["方法", None, "说明"], ["GET", None, "/orders"]])
+    run("scan", str(tmp_path / "docs"), cwd=kb)
+    r = run("cards", cwd=kb)
+    assert r.returncode == 0, r.stderr
+    sidecar = (kb / "raw" / "docs" / "d.xlsx.md").read_text(encoding="utf-8")
+    assert "| 方法 |  | 说明 |" in sidecar and "| GET |  | /orders |" in sidecar
+
+
+def test_sidecar_reextract_on_source_change(kb: Path, tmp_path: Path):
+    """F11 锁：原件更新 → 旁车自动重抽，新卡用新内容而非旧候选。"""
+    doc = tmp_path / "docs" / "v.docx"
+    make_docx(doc, [("Heading3", "1.1 第一版规则")])
+    run("scan", str(tmp_path / "docs"), cwd=kb)
+    run("cards", cwd=kb)
+    make_docx(doc, [("Heading3", "1.1 第二版规则")])
+    run("scan", str(tmp_path / "docs"), cwd=kb)
+    r = run("cards", cwd=kb)
+    assert r.returncode == 0, r.stderr
+    assert "原件已更新" in r.stdout
+    assert "第二版规则" in (kb / "raw" / "docs" / "v.docx.md").read_text(encoding="utf-8")
+    assert any("第二版规则" in c.read_text(encoding="utf-8") for c in (kb / "staging").glob("*.md"))
 
 
 def test_ocr_cmd_fills_binary_card(kb: Path, tmp_path: Path):

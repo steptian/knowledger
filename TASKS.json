@@ -1,17 +1,17 @@
 {
   "version": 1,
   "project": "kbase",
-  "updated_at": "2026-11-26T19:07:01+08:00",
+  "updated_at": "2026-11-26T19:12:08+08:00",
   "tasks": [],
   "handoff": {
-    "text": "对 knowleger 0.3.0（commit aa779aa）做了安全与设计独立复审，报告落在 /tmp/knowledger-030-review-b.md（11 条 finding：1 major、6 minor、4 nit，无 blocker），关键论断全部本机实证（Python 3.13.2 / expat 2.7.4）；未修改仓库任何文件。结论：无阻塞推送项，唯一 major 是 …\n动过：TASKS.json、TASKS.md",
-    "next": "人类阅读 /tmp/knowledger-030-review-b.md，决定是否在推送 aa779aa 前先修 F1（ingest.py 的 _body_text 加单文件 try/except …",
+    "text": "task-2（安全复审 B 面）完成：11 条 finding（1 major/6 minor/4 nit），判定无阻塞推送项；我随即落地了 F1/F2/F4/F6/F7/F8/F9/F10/F11 的修复（commit 018122e，本地未推送），pytest 23/23 通过。task-1（正确性 A 面）仍在跑，它自写验证脚本连败且伪造 lark-cli，已 steer 改走 venv …\n做了一半：task-1 正确性 A 面复审仍在跑，此前自写脚本连败、还伪造过 lark-cli，已 steer 但尚未返回结果",
+    "next": "等 task-1（A 面复审）返回后合并两侧结论做裁决，再处理 TASKS.json/TASKS.md 出仓并推送 018122e。",
     "done": [
-      "完成 0.3.0 安全与设计复审，报告写入 /tmp/knowledger-0…",
-      "实证 XML 攻击面：billion laughs/XXE 被 expat 拦…",
-      "实证 run_ocr shell=True：POSIX 下 shlex.quo…",
-      "评估 lark() 与零依赖原则：plugins/ 不进 pyproject …"
+      "task-2 安全面复审完成，报告落 /tmp/knowledger-030-…",
+      "修复 major F1：抽取加单文件错误隔离，坏 docx 不再杀死整轮 ca…",
+      "修复 F2 zip 炸弹上限、F4 文件名注入、F7/F8 lark 兜底、F…",
+      "对 task-1 发出 steer，指正验证路径并叫停伪造 lark-cli …"
     ],
-    "at": "2026-11-26T19:07:01+08:00"
+    "at": "2026-11-26T19:12:08+08:00"
   }
 }

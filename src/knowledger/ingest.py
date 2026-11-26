@@ -59,8 +59,15 @@ def extract_docx(p: Path) -> str:
     for para in root.iter(f"{W}p"):
         st = para.find(f"{W}pPr/{W}pStyle")
         m = re.match(r"(?:[Hh]eading\s*)?(\d)$", st.get(f"{W}val", "")) if st is not None else None
-        text = "".join(t.text or "" for t in para.iter(f"{W}t")).strip()
-        text = re.sub(r"\s*\r?\n\s*", " ", text)   # 单元格/段落内换行会切断下游 pipe 行与标题匹配
+        # 已知限制：单数字 styleId（中日文 Word 常见）不读 styles.xml 交叉验证，罕见模板会误伤；
+        # mc:AlternateContent 文本框（Choice+Fallback）会重复抽取——候选有去重，人审兕底。
+        parts = []
+        for node in para.iter():
+            if node.tag == f"{W}t":
+                parts.append(node.text or "")
+            elif node.tag in (f"{W}tab", f"{W}br"):
+                parts.append(" ")   # tab/br 不丢分隔，保护词界与行结构
+        text = re.sub(r"\s*\r?\n\s*", " ", "".join(parts)).strip()
         if text:
             out.append(("#" * int(m.group(1)) + " " + text) if m and 1 <= int(m.group(1)) <= 6 else text)
     return "\n\n".join(out)
@@ -78,6 +85,16 @@ def _xlsx_cell(c, shared: list[str]) -> str:
     return v.text if v is not None and v.text else ""
 
 
+def _col_no(ref: str) -> int:
+    """"C5"" → 3（1-based 列号）；无 r 属性引用返回 0。"""
+    m = re.search(r"([A-Z]+)", ref or "")
+    n = 0
+    if m:
+        for ch in m.group(1):
+            n = n * 26 + ord(ch) - 64
+    return n
+
+
 def extract_xlsx(p: Path) -> str:
     """每张 sheet → `## Sheet: 名` + pipe 表行（sharedStrings / 内联字符串 / 数值，公式取缓存值）。"""
     import xml.etree.ElementTree as ET
@@ -85,12 +102,15 @@ def extract_xlsx(p: Path) -> str:
     NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
     RN = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
     def rid(el) -> str:            # 属性大小写兜底：标准是 r:id（小写），部分生成器写 Id
-        return el.get(f"{RN}id") or el.get(f"{RN}Id") or ""
+        return el.get(f"{RN}id") or el.get(f"{RN}Id") or el.get("Id") or el.get("id") or ""   # sheet r:id namespaced; standard rels Id is prefix-free
     with zipfile.ZipFile(p) as z:
         shared = []
         if "xl/sharedStrings.xml" in z.namelist():
             sroot = ET.fromstring(_zread(z, "xl/sharedStrings.xml"))
-            shared = ["".join(t.text or "" for t in si.iter(f"{NS}t")) for si in sroot.findall(f"{NS}si")]
+            for si in sroot.findall(f"{NS}si"):
+                for rph in si.findall(f"{NS}rPh"):   # 音译注音不进正文
+                    si.remove(rph)
+                shared.append("".join(t.text or "" for t in si.iter(f"{NS}t")))
         wb = ET.fromstring(_zread(z, "xl/workbook.xml"))
         names = z.namelist()
         rmap = {}
@@ -105,12 +125,18 @@ def extract_xlsx(p: Path) -> str:
                 target = f"worksheets/sheet{n}.xml" if f"xl/worksheets/sheet{n}.xml" in names else ""
             if not target:
                 continue
-            path = target if target.startswith("xl/") else "xl/" + target.lstrip("/")
+            path = (target.lstrip("/") if target.startswith("/")
+                    else target if target.startswith("xl/") else "xl/" + target)
             lines = [f"## Sheet: {s.get('name')}", ""]
             for row in ET.fromstring(_zread(z, path)).iter(f"{NS}row"):
-                cells = [re.sub(r"\s*\r?\n\s*", " ", _xlsx_cell(c, shared)) for c in row.iter(f"{NS}c")]
-                if any(x.strip() for x in cells):
-                    lines.append("| " + " | ".join(cells) + " |")
+                cells: dict[int, str] = {}
+                for c in row.iter(f"{NS}c"):
+                    idx = _col_no(c.get("r") or "") or len(cells) + 1   # 稀疏行按 r 属性归位，无 r 按出现顺序补位
+                    cells[idx] = re.sub(r"\s*\r?\n\s*", " ", _xlsx_cell(c, shared))
+                if cells:
+                    row_cells = [cells.get(i, "") for i in range(1, max(cells) + 1)]
+                    if any(x.strip() for x in row_cells):
+                        lines.append("| " + " | ".join(row_cells) + " |")
             if len(lines) > 2:
                 out.append("\n".join(lines))
     return "\n\n".join(out)
@@ -173,6 +199,9 @@ def lark(cfg: Config, urls: list[str]) -> int:
         except FileNotFoundError:
             print("✗ 找不到 lark-cli。飞书抓取是外部命令（核心零依赖）：安装后重试。")
             return 2
+        except subprocess.TimeoutExpired:
+            print(f"  ⚠ {url}：lark-cli 120s 超时，跳过")
+            continue
         try:
             data = json.loads(r.stdout)
         except json.JSONDecodeError:
@@ -187,7 +216,7 @@ def lark(cfg: Config, urls: list[str]) -> int:
         except (KeyError, TypeError) as e:
             print(f"  ⚠ {url}：输出缺字段（lark-cli schema 漂移？）：{e}")
             continue
-        m = re.match(r"<title>(.*?)</title>", content, re.S)
+        m = re.search(r"<title>(.*?)</title>", content, re.S)   # search：title 锚在文件开头但 markdown 前可能有空白
         token = url.rstrip("/").split("/")[-1].split("?")[0]
         name = re.sub(r'[\\/:*?"<>|\s]+', "-", m.group(1) if m else token).strip("-.")[:60] or f"lark-{token}"
         out = out_dir / f"{name}.md"
@@ -284,10 +313,15 @@ class ManifestItem:
     needs_ocr: bool
 
 
-def _body_text(cfg: Config, p: Path, sidecar: Path) -> str:
+def _body_text(cfg: Config, p: Path, sidecar: Path, src_sha: str = "") -> str:
     """旁车优先（人审修正以它为准）→ docx/xlsx 零依赖抽取 → ocr_cmd 插件 → 纯文本。单文件失败不断整轮。"""
     if sidecar.exists():
-        return read_text(sidecar)
+        if src_sha and _sidecar_stale(sidecar, src_sha):
+            print(f"  ⚠ {p.name} 原件已更新，重抽旁车（人工修正可从 git 找回旧版）")
+            sidecar.unlink()   # 原件已变，旧旁车过时；git 管着 raw/，旧版可找回
+        else:
+            return read_text(sidecar)
+    tag = f"（源 sha {src_sha}）" if src_sha else ""   # cards 用它探测原件更新 → 自动重抽
     if p.suffix.lower() in DOCX_EXT:
         try:
             text = extract_docx(p) if p.suffix.lower() == ".docx" else extract_xlsx(p)
@@ -296,17 +330,23 @@ def _body_text(cfg: Config, p: Path, sidecar: Path) -> str:
             return ""
         if text:
             sidecar.write_text(
-                f"<!-- knowledger 旁车：机器抽取自 {p.name}；可手工修正，重跑 cards 以本文件为准，删除则重新抽取。 -->\n\n{text}\n",
+                f"<!-- knowledger 旁车：机器抽取自 {p.name}{tag}；可手工修正，重跑 cards 以本文件为准，删除则重新抽取。 -->\n\n{text}\n",
                 encoding="utf-8")
         return text
     if p.suffix.lower() in BINARY_EXT and cfg.ocr_cmd:
         text = run_ocr(cfg.ocr_cmd, p)
         if text:
             sidecar.write_text(
-                f"<!-- knowledger 旁车：OCR 自 {p.name}；可手工修正，删除则下次重跑 OCR。 -->\n\n{text}\n",
+                f"<!-- knowledger 旁车：OCR 自 {p.name}{tag}；可手工修正，删除则下次重跑 OCR。 -->\n\n{text}\n",
                 encoding="utf-8")
         return text
     return read_text(p)
+
+
+def _sidecar_stale(sidecar: Path, src_sha: str) -> bool:
+    """旁车头部记录的源 sha 与当前原件不一致 = 原件更新过，旧旁车过时。无 sha 标记的旧旁车不判过期（兼容）。"""
+    m = re.search(r"源 sha \w+", sidecar.read_text(encoding="utf-8", errors="ignore")[:200])
+    return bool(m) and m.group() != f"源 sha {src_sha}"
 
 
 def cards(cfg: Config) -> int:
@@ -322,12 +362,14 @@ def cards(cfg: Config) -> int:
         if p.name.endswith(SIDECAR_ENDS) and p.with_name(p.name[:-3]).exists():
             continue   # 旁车；但对应原件已不在的 .docx.md 是正经文档，照常建卡
         rel = p.relative_to(cfg.raw)
-        text = _body_text(cfg, p, p.with_name(p.name + ".md"))   # 旁车：a.docx → a.docx.md
+        src_sha = sha(p)
+        sidecar = p.with_name(p.name + ".md")   # 旁车：a.docx → a.docx.md
+        text = _body_text(cfg, p, sidecar, src_sha[:12])
         block = infer_block(cfg, text, rel) if text else next(iter(cfg.blocks))
         cands = extract_candidates(cfg, text) if text else []
-        doc_id = "D-" + sha(p)[:8].upper()
+        doc_id = "D-" + src_sha[:8].upper()
         needs_ocr = not text
-        manifest.append(ManifestItem(doc_id, str(rel), sha(p), block, cfg.blocks[block].default_type, len(cands), needs_ocr))
+        manifest.append(ManifestItem(doc_id, str(rel), src_sha, block, cfg.blocks[block].default_type, len(cands), needs_ocr))
         out = cfg.staging / f"{doc_id}.md"
         existing = fm.read_card(out)[0] if out.exists() else {}
         owner = existing.get("owner", "待审")  # re-running cards must not wipe a human's review
@@ -336,7 +378,7 @@ def cards(cfg: Config) -> int:
             "status: draft", f"valid_from: {today}", "version: 1",
             "sources:", f"  - doc: {doc_id}", "    version: 1",
             "relates_to: []", "---", "",
-            "## 来源", f"`raw/{rel}`　sha `{sha(p)[:8]}`", "",
+            "## 来源", f"`raw/{rel}`　sha `{src_sha[:8]}`", "",
             "## 机器推断（人审：对就留，错就改，不确定标待确认）",
             f"- 归属块：**{block}**（依据：路径 / 关键词计分）",
             f"- 对象类：{cfg.blocks[block].default_type}",

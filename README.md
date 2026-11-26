@@ -18,7 +18,7 @@ docs ──scan──▶ raw/ ──cards──▶ staging/ ──review──�
 
 knowledger 用一条流水线把两端焊住：进不要求先建 schema，出必经真人审核，中间六道机械关挡住一切「靠自觉」。
 
-放在当下的浪潮里看：本地知识图谱（GraphRAG / LightRAG / Graphiti 一族）让「文档 → 本地图谱 → 增强检索」成了热门路线，但 LLM 自动抽取的三元组自带幻觉，实体归一靠字符串匹配，错误关系没人兕底——图谱越大越脏，建图的 token 成本还比普通 RAG 高一个数量级。knowledger 编译出的就是一份**人审过的本地本体**（`ontology.json` + `SNAPSHOT.md`）：每条边指到一个真人和一天，别名归一表（rewrite.json）直接可用。既能单独当 AI 的知识层，也能给 GraphRAG 一族当干净的本体约束与事实来源。
+放在当下的浪潮里看：本地知识图谱（GraphRAG / LightRAG / Graphiti 一族）让「文档 → 本地图谱 → 增强检索」成了热门路线，但 LLM 自动抽取的三元组自带幻觉，实体归一靠字符串匹配，错误关系没人兜底——图谱越大越脏，建图的 token 成本还比普通 RAG 高一个数量级。knowledger 编译出的就是一份**人审过的本地本体**（`ontology.json` + `SNAPSHOT.md`）：每条边指到一个真人和一天，别名归一表（rewrite.json）直接可用。既能单独当 AI 的知识层，也能给 GraphRAG 一族当干净的本体约束与事实来源。
 
 ## 全流程一页图
 

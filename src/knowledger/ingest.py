@@ -60,7 +60,7 @@ def extract_docx(p: Path) -> str:
         st = para.find(f"{W}pPr/{W}pStyle")
         m = re.match(r"(?:[Hh]eading\s*)?(\d)$", st.get(f"{W}val", "")) if st is not None else None
         # 已知限制：单数字 styleId（中日文 Word 常见）不读 styles.xml 交叉验证，罕见模板会误伤；
-        # mc:AlternateContent 文本框（Choice+Fallback）会重复抽取——候选有去重，人审兕底。
+        # mc:AlternateContent 文本框（Choice+Fallback）会重复抽取——候选有去重，人审兜底。
         parts = []
         for node in para.iter():
             if node.tag == f"{W}t":

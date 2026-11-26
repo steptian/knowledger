@@ -1,21 +1,17 @@
 {
   "version": 1,
   "project": "kbase",
-  "updated_at": "2026-11-26T18:45:36+08:00",
+  "updated_at": "2026-11-26T19:07:01+08:00",
   "tasks": [],
   "handoff": {
-    "text": "本轮把 knowledger 项目在 GitHub 上完成公开开源（steptian/knowledger，public，MIT，v0.2.0）：先扫全树敏感信息，把 README 示例人名、门牌内部状态改为可公开版，docs/HANDOVER.md 移出版控保留本地，并把散布敏感内容的旧 8 个提交压成单个干净初始提交 450d70b 后推送，推送后远端 sha 与本地一致、14 测试通过。决…\n做了一半：HANDOVER 交接 门牌 next 行写了「内部待办见 docs/HANDOVER.md（本地保留，不入仓）」，公开读者看不到该文件，属已…",
-    "next": "推进 HANDOVER「未完成」三件：WorkBuddy 真实认领（6 张卡找黄玉）、正也定 dev owner（29/38 卡卡在这）、以及视情况补 CONTRIBUTING/issue 模板或规…",
+    "text": "对 knowleger 0.3.0（commit aa779aa）做了安全与设计独立复审，报告落在 /tmp/knowledger-030-review-b.md（11 条 finding：1 major、6 minor、4 nit，无 blocker），关键论断全部本机实证（Python 3.13.2 / expat 2.7.4）；未修改仓库任何文件。结论：无阻塞推送项，唯一 major 是 …\n动过：TASKS.json、TASKS.md",
+    "next": "人类阅读 /tmp/knowledger-030-review-b.md，决定是否在推送 aa779aa 前先修 F1（ingest.py 的 _body_text 加单文件 try/except …",
     "done": [
-      "确认环境全绿（gh 登录态有效、14 测试通过、knowledger 0.2.…",
-      "全树敏感信息扫描定性：黄玉/AGENTS 门牌/HANDOVER.md 为真敏…",
-      "README 示例人名 黄玉 改为 zhangsan",
-      "AGENTS.md 门牌状态区改为可公开版",
-      "docs/HANDOVER.md 移出版控并加入 .gitignore（文件仍…",
-      "旧 8 提交压成单个干净初始提交 450d70b，旧历史留本地 tag bac…",
-      "GitHub 建仓 steptian/knowledger（public）并推…",
-      "开源决策及备份 tag 位置已存入记忆库"
+      "完成 0.3.0 安全与设计复审，报告写入 /tmp/knowledger-0…",
+      "实证 XML 攻击面：billion laughs/XXE 被 expat 拦…",
+      "实证 run_ocr shell=True：POSIX 下 shlex.quo…",
+      "评估 lark() 与零依赖原则：plugins/ 不进 pyproject …"
     ],
-    "at": "2026-11-26T18:45:36+08:00"
+    "at": "2026-11-26T19:07:01+08:00"
   }
 }

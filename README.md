@@ -187,7 +187,7 @@ common_required: [id, type, name, owner, block, status, sources]
 |---|---|---|
 | .md .txt .html .csv .json | ✅ 全文 | 直接 |
 | .docx .xlsx | ✅ 全文 | 零依赖（zipfile + xml），旁车 `.md` 缓存，可手工修正 |
-| .doc .pdf | 仅建卡，正文空 | 配 `ocr_cmd` 插件点即自动 OCR（参考实现 plugins/ocr_deepseek.py） |
+| .doc .pdf | 仅建卡，正文空 | 配 `ocr_cmd` 插件点即自动 OCR（POSIX；参考实现 plugins/ocr_deepseek.py，从仓库复制到本机用，不随 pip 安装） |
 | 飞书文档 | ✅ markdown | `knowledger lark <url>`（外部 lark-cli，不进核心包） |
 | Notion | ❌ 不做 | — |
 | 图片 / 音频 / 视频 | ❌ 拒绝 | — |

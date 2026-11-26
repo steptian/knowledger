@@ -128,6 +128,19 @@ def test_xlsx_newline_in_cell_becomes_space(kb: Path, tmp_path: Path):
     assert "| 长款名 （括号注） | 蓝 |" in sidecar, "换行应被清成空格且同行成表"
 
 
+def test_broken_docx_does_not_kill_cards(kb: Path, tmp_path: Path):
+    """F1：一个畸形 docx 不得杀死整轮 cards，其余文件照常建卡。"""
+    (tmp_path / "docs" / "坏文件.docx").write_bytes(b"not a zip at all")
+    (tmp_path / "docs" / "正常.md").write_text("### 1.1 有效条目\n", encoding="utf-8")
+    run("scan", str(tmp_path / "docs"), cwd=kb)
+    r = run("cards", cwd=kb)
+    assert r.returncode == 0, r.stderr
+    assert "抽取失败" in r.stdout
+    bodies = {c.read_text(encoding="utf-8") for c in (kb / "staging").glob("*.md")}
+    assert any("有效条目" in b for b in bodies), "其余文件必须照常建卡"
+    assert any("需 OCR" in b for b in bodies), "坏 docx 归入需 OCR 路径"
+
+
 def test_ocr_cmd_fills_binary_card(kb: Path, tmp_path: Path):
     (kb / "knowledger.yaml").write_text(
         (kb / "knowledger.yaml").read_text(encoding="utf-8") + '\nocr_cmd: "echo OCR正文"\n', encoding="utf-8")

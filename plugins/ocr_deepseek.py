@@ -10,6 +10,7 @@ knowledger.yaml 里配一行（%s 处替换为文件路径）：
 """
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -32,9 +33,10 @@ def main() -> int:
         print(f"读不了 {path}: {e}", file=sys.stderr)
         return 2
     boundary = uuid.uuid4().hex
+    safe_name = re.sub(r'["\r\n]', "", os.path.basename(path)) or "doc"   # 防引号/CRLF 破坏表单 part
     body = (
         f'--{boundary}\r\nContent-Disposition: form-data; name="purpose"\r\n\r\ntext_recognition\r\n'
-        f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{os.path.basename(path)}"\r\n'
+        f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{safe_name}"\r\n'
         f"Content-Type: application/octet-stream\r\n\r\n"
     ).encode() + file_bytes + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(

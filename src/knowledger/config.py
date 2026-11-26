@@ -135,6 +135,7 @@ def load(start: Path | None = None) -> Config:
         data = _parse_line_yaml(yml.read_text(encoding="utf-8"))
     else:
         raise ConfigError("knowledger.yaml 不存在")
+    ocr_raw = data.get("ocr_cmd")   # F10：非字符串（如误写列表）在入口规整，别到运行时才炸
     try:
         blocks = {
             n: Block(n, b.get("owners"), list(b.get("hints", [])), b["default_type"])
@@ -152,7 +153,7 @@ def load(start: Path | None = None) -> Config:
             section_noise=list(data.get("section_noise", [])),
             status_enum=list(data["status_enum"]),
             common_required=list(data.get("common_required", ["id", "type", "name", "owner", "block", "status", "sources"])),
-            ocr_cmd=data.get("ocr_cmd"),
+            ocr_cmd=str(ocr_raw) if ocr_raw is not None else None,
             root=root,
         )
     except (KeyError, TypeError) as e:

@@ -21,6 +21,13 @@ DOCX_EXT = {".docx", ".xlsx"}              # 零依赖抽取（zipfile + Element
 BINARY_EXT = {".doc", ".pdf"}              # 仅建卡正文空；配 ocr_cmd 后 cards 会调它
 EXT_OK = TEXT_EXT | DOCX_EXT | BINARY_EXT
 SIDECAR_ENDS = tuple(e + ".md" for e in sorted(DOCX_EXT | BINARY_EXT))   # a.docx → a.docx.md
+MAX_XML = 512 * 1024 * 1024   # 单个 OOXML 部件解压上限：防 zip 炸弹（实测 deflate 可达 1000:1）
+
+
+def _zread(z, name: str) -> bytes:
+    if z.getinfo(name).file_size > MAX_XML:
+        raise ValueError(f"{name} 解压后超 512MB，疑似 zip 炸弹，拒绝解析")
+    return z.read(name)
 
 API_ROW = re.compile(r"^\|\s*(GET|POST|PUT|DELETE|PATCH)\s*\|\s*`?([^|`]+)`?\s*\|\s*([^|]+?)\s*\|")
 H3 = re.compile(r"^###\s+[\d.]+\s*(.+)$")
@@ -47,7 +54,7 @@ def extract_docx(p: Path) -> str:
     import zipfile
     W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
     with zipfile.ZipFile(p) as z:
-        root = ET.fromstring(z.read("word/document.xml"))
+        root = ET.fromstring(_zread(z, "word/document.xml"))
     out = []
     for para in root.iter(f"{W}p"):
         st = para.find(f"{W}pPr/{W}pStyle")
@@ -82,9 +89,9 @@ def extract_xlsx(p: Path) -> str:
     with zipfile.ZipFile(p) as z:
         shared = []
         if "xl/sharedStrings.xml" in z.namelist():
-            sroot = ET.fromstring(z.read("xl/sharedStrings.xml"))
+            sroot = ET.fromstring(_zread(z, "xl/sharedStrings.xml"))
             shared = ["".join(t.text or "" for t in si.iter(f"{NS}t")) for si in sroot.findall(f"{NS}si")]
-        wb = ET.fromstring(z.read("xl/workbook.xml"))
+        wb = ET.fromstring(_zread(z, "xl/workbook.xml"))
         names = z.namelist()
         rmap = {}
         if "xl/_rels/workbook.xml.rels" in names:
@@ -100,7 +107,7 @@ def extract_xlsx(p: Path) -> str:
                 continue
             path = target if target.startswith("xl/") else "xl/" + target.lstrip("/")
             lines = [f"## Sheet: {s.get('name')}", ""]
-            for row in ET.fromstring(z.read(path)).iter(f"{NS}row"):
+            for row in ET.fromstring(_zread(z, path)).iter(f"{NS}row"):
                 cells = [re.sub(r"\s*\r?\n\s*", " ", _xlsx_cell(c, shared)) for c in row.iter(f"{NS}c")]
                 if any(x.strip() for x in cells):
                     lines.append("| " + " | ".join(cells) + " |")
@@ -175,12 +182,22 @@ def lark(cfg: Config, urls: list[str]) -> int:
             msg = (data.get("error") or {}).get("message", "未知错误")
             print(f"  ⚠ {url}：{str(msg)[:200]}")
             continue
-        content = data["data"]["document"]["content"]
+        try:
+            content = data["data"]["document"]["content"]
+        except (KeyError, TypeError) as e:
+            print(f"  ⚠ {url}：输出缺字段（lark-cli schema 漂移？）：{e}")
+            continue
         m = re.match(r"<title>(.*?)</title>", content, re.S)
         token = url.rstrip("/").split("/")[-1].split("?")[0]
         name = re.sub(r'[\\/:*?"<>|\s]+', "-", m.group(1) if m else token).strip("-.")[:60] or f"lark-{token}"
         out = out_dir / f"{name}.md"
-        out.write_text(content + "\n", encoding="utf-8")
+        if out.exists() and out.read_text(encoding="utf-8", errors="ignore") != content + "\n":
+            out = out_dir / f"{name}-{token[:8]}.md"   # 同名不同文：追加 token，遵守 raw/ 只增不改
+        try:
+            out.write_text(content + "\n", encoding="utf-8")
+        except (OSError, ValueError) as e:
+            print(f"  ⚠ {url}：写盘失败：{e}")
+            continue
         print(f"  + {out.relative_to(cfg.root)}")
         ok += 1
     print(f"lark：{ok}/{len(urls)} 份 → raw/feishu/；接着 `knowledger cards`")
@@ -268,11 +285,15 @@ class ManifestItem:
 
 
 def _body_text(cfg: Config, p: Path, sidecar: Path) -> str:
-    """旁车优先（人审修正以它为准）→ docx/xlsx 零依赖抽取 → ocr_cmd 插件 → 纯文本。"""
+    """旁车优先（人审修正以它为准）→ docx/xlsx 零依赖抽取 → ocr_cmd 插件 → 纯文本。单文件失败不断整轮。"""
     if sidecar.exists():
         return read_text(sidecar)
     if p.suffix.lower() in DOCX_EXT:
-        text = extract_docx(p) if p.suffix.lower() == ".docx" else extract_xlsx(p)
+        try:
+            text = extract_docx(p) if p.suffix.lower() == ".docx" else extract_xlsx(p)
+        except Exception as e:
+            print(f"  ⚠ 抽取失败 {p.name}：{type(e).__name__}: {e}")
+            return ""
         if text:
             sidecar.write_text(
                 f"<!-- knowledger 旁车：机器抽取自 {p.name}；可手工修正，重跑 cards 以本文件为准，删除则重新抽取。 -->\n\n{text}\n",
@@ -296,8 +317,10 @@ def cards(cfg: Config) -> int:
     manifest: list[ManifestItem] = []
     today = date.today().isoformat()
     for p in sorted(cfg.raw.rglob("*")):
-        if not p.is_file() or p == cfg.raw / "README.md" or p.name.endswith(SIDECAR_ENDS):
+        if not p.is_file() or p == cfg.raw / "README.md":
             continue
+        if p.name.endswith(SIDECAR_ENDS) and p.with_name(p.name[:-3]).exists():
+            continue   # 旁车；但对应原件已不在的 .docx.md 是正经文档，照常建卡
         rel = p.relative_to(cfg.raw)
         text = _body_text(cfg, p, p.with_name(p.name + ".md"))   # 旁车：a.docx → a.docx.md
         block = infer_block(cfg, text, rel) if text else next(iter(cfg.blocks))

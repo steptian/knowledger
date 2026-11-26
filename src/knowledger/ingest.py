@@ -17,8 +17,10 @@ from . import fm
 from .config import Config
 
 TEXT_EXT = {".md", ".txt", ".html", ".csv", ".json"}
-BINARY_EXT = {".doc", ".docx", ".pdf"}     # card created, body not extracted (needs OCR)
-EXT_OK = TEXT_EXT | BINARY_EXT
+DOCX_EXT = {".docx", ".xlsx"}              # 零依赖抽取（zipfile + ElementTree），旁车 .md 缓存
+BINARY_EXT = {".doc", ".pdf"}              # 仅建卡正文空；配 ocr_cmd 后 cards 会调它
+EXT_OK = TEXT_EXT | DOCX_EXT | BINARY_EXT
+SIDECAR_ENDS = tuple(e + ".md" for e in sorted(DOCX_EXT | BINARY_EXT))   # a.docx → a.docx.md
 
 API_ROW = re.compile(r"^\|\s*(GET|POST|PUT|DELETE|PATCH)\s*\|\s*`?([^|`]+)`?\s*\|\s*([^|]+?)\s*\|")
 H3 = re.compile(r"^###\s+[\d.]+\s*(.+)$")
@@ -31,12 +33,84 @@ def sha(p: Path) -> str:
 
 
 def read_text(p: Path) -> str:
-    if p.suffix.lower() in BINARY_EXT:
+    if p.suffix.lower() in BINARY_EXT | DOCX_EXT:
         return ""
     try:
         return p.read_text(encoding="utf-8", errors="ignore")
     except OSError:
         return ""
+
+
+def extract_docx(p: Path) -> str:
+    """word/document.xml → 文本；Heading 样式映射 #/##/###（### 正好喂候选切分）。表格段落按普通行处理。"""
+    import xml.etree.ElementTree as ET
+    import zipfile
+    W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    with zipfile.ZipFile(p) as z:
+        root = ET.fromstring(z.read("word/document.xml"))
+    out = []
+    for para in root.iter(f"{W}p"):
+        st = para.find(f"{W}pPr/{W}pStyle")
+        m = re.match(r"(?:[Hh]eading\s*)?(\d)$", st.get(f"{W}val", "")) if st is not None else None
+        text = "".join(t.text or "" for t in para.iter(f"{W}t")).strip()
+        if text:
+            out.append(("#" * int(m.group(1)) + " " + text) if m and 1 <= int(m.group(1)) <= 6 else text)
+    return "\n\n".join(out)
+
+
+def extract_xlsx(p: Path) -> str:
+    """每张 sheet → `## Sheet: 名` + pipe 表行（sharedStrings / 内联字符串 / 数值，公式取缓存值）。"""
+    import xml.etree.ElementTree as ET
+    import zipfile
+    NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}Id"
+    with zipfile.ZipFile(p) as z:
+        shared = []
+        if "xl/sharedStrings.xml" in z.namelist():
+            sroot = ET.fromstring(z.read("xl/sharedStrings.xml"))
+            shared = ["".join(t.text or "" for t in si.iter(f"{NS}t")) for si in sroot.findall(f"{NS}si")]
+        wb = ET.fromstring(z.read("xl/workbook.xml"))
+        rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+        rmap = {r.get(R): r.get("Target") for r in rels}
+        out = []
+        for s in wb.iter(f"{NS}sheet"):
+            target = rmap.get(s.get(R), "")
+            if not target:
+                continue
+            path = target if target.startswith("xl/") else "xl/" + target.lstrip("/")
+            lines = [f"## Sheet: {s.get('name')}", ""]
+            for row in ET.fromstring(z.read(path)).iter(f"{NS}row"):
+                cells = []
+                for c in row.iter(f"{NS}c"):
+                    if c.get("t") == "s":
+                        v = c.find(f"{NS}v")
+                        cells.append(shared[int(v.text)] if v is not None and v.text else "")
+                    elif c.get("t") == "inlineStr":
+                        cells.append("".join(t.text or "" for t in c.iter(f"{NS}t")))
+                    else:
+                        v = c.find(f"{NS}v")
+                        cells.append(v.text if v is not None and v.text else "")
+                if any(x.strip() for x in cells):
+                    lines.append("| " + " | ".join(cells) + " |")
+            if len(lines) > 2:
+                out.append("\n".join(lines))
+    return "\n\n".join(out)
+
+
+def run_ocr(tmpl: str, p: Path) -> str:
+    """ocr_cmd 插件点：模板含 %s 则替换为引号包住的路径，否则追加在末尾；stdout 即正文。"""
+    import shlex
+    import subprocess
+    cmd = tmpl.replace("%s", shlex.quote(str(p))) if "%s" in tmpl else f"{tmpl} {shlex.quote(str(p))}"
+    try:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        print(f"  ⚠ OCR 超时（600s）：{p.name}")
+        return ""
+    if r.returncode != 0 or not r.stdout.strip():
+        print(f"  ⚠ OCR 失败 {p.name}：{(r.stderr or '无输出').strip()[:200]}")
+        return ""
+    return r.stdout
 
 
 # ---------- scan ----------
@@ -62,6 +136,43 @@ def scan(cfg: Config, sources: list[str]) -> int:
             print(f"  + {dst.relative_to(cfg.root)}")
     print(f"\nscan：新增/更新 {n} 份 → raw/")
     return 0
+
+
+# ---------- lark（飞书，外部命令） ----------
+def lark(cfg: Config, urls: list[str]) -> int:
+    """lark-cli docs +fetch 拉 markdown 落到 raw/feishu/，后续 cards 无感知。lark-cli 缺失时给出指路。"""
+    import json
+    import subprocess
+    out_dir = cfg.raw / "feishu"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ok = 0
+    for url in urls:
+        try:
+            r = subprocess.run(
+                ["lark-cli", "docs", "+fetch", "--doc", url, "--doc-format", "markdown", "--scope", "full"],
+                capture_output=True, text=True, timeout=120)
+        except FileNotFoundError:
+            print("✗ 找不到 lark-cli。飞书抓取是外部命令（核心零依赖）：安装后重试。")
+            return 2
+        try:
+            data = json.loads(r.stdout)
+        except json.JSONDecodeError:
+            print(f"  ⚠ {url}：输出不是 JSON：{(r.stderr or r.stdout).strip()[:200]}")
+            continue
+        if not data.get("ok"):
+            msg = (data.get("error") or {}).get("message", "未知错误")
+            print(f"  ⚠ {url}：{str(msg)[:200]}")
+            continue
+        content = data["data"]["document"]["content"]
+        m = re.match(r"<title>(.*?)</title>", content, re.S)
+        token = url.rstrip("/").split("/")[-1].split("?")[0]
+        name = re.sub(r'[\\/:*?"<>|\s]+', "-", m.group(1) if m else token).strip("-.")[:60] or f"lark-{token}"
+        out = out_dir / f"{name}.md"
+        out.write_text(content + "\n", encoding="utf-8")
+        print(f"  + {out.relative_to(cfg.root)}")
+        ok += 1
+    print(f"lark：{ok}/{len(urls)} 份 → raw/feishu/；接着 `knowledger cards`")
+    return 0 if ok else 1
 
 
 # ---------- cards ----------
@@ -144,6 +255,27 @@ class ManifestItem:
     needs_ocr: bool
 
 
+def _body_text(cfg: Config, p: Path, sidecar: Path) -> str:
+    """旁车优先（人审修正以它为准）→ docx/xlsx 零依赖抽取 → ocr_cmd 插件 → 纯文本。"""
+    if sidecar.exists():
+        return read_text(sidecar)
+    if p.suffix.lower() in DOCX_EXT:
+        text = extract_docx(p) if p.suffix.lower() == ".docx" else extract_xlsx(p)
+        if text:
+            sidecar.write_text(
+                f"<!-- knowledger 旁车：机器抽取自 {p.name}；可手工修正，重跑 cards 以本文件为准，删除则重新抽取。 -->\n\n{text}\n",
+                encoding="utf-8")
+        return text
+    if p.suffix.lower() in BINARY_EXT and cfg.ocr_cmd:
+        text = run_ocr(cfg.ocr_cmd, p)
+        if text:
+            sidecar.write_text(
+                f"<!-- knowledger 旁车：OCR 自 {p.name}；可手工修正，删除则下次重跑 OCR。 -->\n\n{text}\n",
+                encoding="utf-8")
+        return text
+    return read_text(p)
+
+
 def cards(cfg: Config) -> int:
     if not cfg.raw.exists() or not any(cfg.raw.rglob("*")):
         print("raw/ 是空的，先 `knowledger scan <目录>`")
@@ -152,10 +284,10 @@ def cards(cfg: Config) -> int:
     manifest: list[ManifestItem] = []
     today = date.today().isoformat()
     for p in sorted(cfg.raw.rglob("*")):
-        if not p.is_file() or p == cfg.raw / "README.md":   # 只跳过归档区自述；子目录里的 README.md 是正经文档
+        if not p.is_file() or p == cfg.raw / "README.md" or p.name.endswith(SIDECAR_ENDS):
             continue
         rel = p.relative_to(cfg.raw)
-        text = read_text(p)
+        text = _body_text(cfg, p, p.with_name(p.name + ".md"))   # 旁车：a.docx → a.docx.md
         block = infer_block(cfg, text, rel) if text else next(iter(cfg.blocks))
         cands = extract_candidates(cfg, text) if text else []
         doc_id = "D-" + sha(p)[:8].upper()
@@ -175,7 +307,7 @@ def cards(cfg: Config) -> int:
             f"- 对象类：{cfg.blocks[block].default_type}",
         ]
         if needs_ocr:
-            lines.append("- ⚠ 二进制文档（doc / docx / pdf）：未抽正文，需 OCR 后重跑 cards")
+            lines.append("- ⚠ 二进制文档（doc / pdf / docx / xlsx）：无正文，需 OCR 或手工补旁车 .md 后重跑 cards")
         lines += ["", f"## 候选条目（{len(cands)} 条；人审后决定哪些升为实例）", ""]
         for i, c in enumerate(cands, 1):
             extra = f"　{c['note']}" if c.get("note") else ""

@@ -41,6 +41,7 @@ class Config:
     status_enum: list[str]
     common_required: list[str]
     root: Path
+    ocr_cmd: str | None = None   # 插件点：吃文件路径、stdout 吐正文的命令；.doc/.pdf 正文靠它
 
     @property
     def raw(self) -> Path: return self.root / "raw"
@@ -151,6 +152,7 @@ def load(start: Path | None = None) -> Config:
             section_noise=list(data.get("section_noise", [])),
             status_enum=list(data["status_enum"]),
             common_required=list(data.get("common_required", ["id", "type", "name", "owner", "block", "status", "sources"])),
+            ocr_cmd=data.get("ocr_cmd"),
             root=root,
         )
     except (KeyError, TypeError) as e:

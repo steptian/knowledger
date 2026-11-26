@@ -75,6 +75,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("src", nargs="+")
     s.set_defaults(fn=lambda a: ingest.scan(load_cfg(), a.src))
 
+    lk = sp.add_parser("lark", help="飞书文档经 lark-cli 拉 markdown 进 raw/feishu/（外部命令，核心零依赖）")
+    lk.add_argument("url", nargs="+")
+    lk.set_defaults(fn=lambda a: ingest.lark(load_cfg(), a.url))
+
     sp.add_parser("cards", help="为 raw/ 每份文档建索引卡 → staging/").set_defaults(
         fn=lambda a: ingest.cards(load_cfg()))
 

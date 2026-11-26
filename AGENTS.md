@@ -11,6 +11,6 @@ links:
 wiki: 
 
 ## 状态区
-status: v0.2.0 已开源（GitHub steptian/knowledger）
-next: 真实使用验证——外部数据实例跑通 认领→审核→编译 全链路；内部待办见 docs/HANDOVER.md（本地保留，不入仓）
-updated: 2026-11-25
+status: v0.3.0（格式支持扩展）已开源
+next: 真实使用验证——外部数据实例跑通 认领→审核→编译 全链路；DeepSeek OCR 参考脚本待 DEEPSEEK_API_KEY 实测；内部待办见 docs/HANDOVER.md（本地保留，不入仓）
+updated: 2026-11-26

@@ -1,14 +1,21 @@
 {
   "version": 1,
   "project": "kbase",
-  "updated_at": "2026-11-26T17:57:30+08:00",
+  "updated_at": "2026-11-26T18:45:36+08:00",
   "tasks": [],
   "handoff": {
-    "text": "检查了 PyPI 上 knowledger 这个名字：主站和 TestPyPI 均返回 404 未被注册，GitHub 上 steptian/knowledger 仓也不存在且无突出同名项目，结论是该名可用；会话未做任何改名或代码变更。\n动过：TASKS.json、TASKS.md",
-    "next": "确认采用 knowledger 名称后执行全面改名（目录/CLI/MCP 前缀/README/测试），然后建 GitHub 仓 steptian/knowledger 并推送，PyPI 暂不发布。",
+    "text": "本轮把 knowledger 项目在 GitHub 上完成公开开源（steptian/knowledger，public，MIT，v0.2.0）：先扫全树敏感信息，把 README 示例人名、门牌内部状态改为可公开版，docs/HANDOVER.md 移出版控保留本地，并把散布敏感内容的旧 8 个提交压成单个干净初始提交 450d70b 后推送，推送后远端 sha 与本地一致、14 测试通过。决…\n做了一半：HANDOVER 交接 门牌 next 行写了「内部待办见 docs/HANDOVER.md（本地保留，不入仓）」，公开读者看不到该文件，属已…",
+    "next": "推进 HANDOVER「未完成」三件：WorkBuddy 真实认领（6 张卡找黄玉）、正也定 dev owner（29/38 卡卡在这）、以及视情况补 CONTRIBUTING/issue 模板或规…",
     "done": [
-      "T184 查证 knowledger 名字可用性：PyPI/TestPyPI …"
+      "确认环境全绿（gh 登录态有效、14 测试通过、knowledger 0.2.…",
+      "全树敏感信息扫描定性：黄玉/AGENTS 门牌/HANDOVER.md 为真敏…",
+      "README 示例人名 黄玉 改为 zhangsan",
+      "AGENTS.md 门牌状态区改为可公开版",
+      "docs/HANDOVER.md 移出版控并加入 .gitignore（文件仍…",
+      "旧 8 提交压成单个干净初始提交 450d70b，旧历史留本地 tag bac…",
+      "GitHub 建仓 steptian/knowledger（public）并推…",
+      "开源决策及备份 tag 位置已存入记忆库"
     ],
-    "at": "2026-11-26T17:57:30+08:00"
+    "at": "2026-11-26T18:45:36+08:00"
   }
 }

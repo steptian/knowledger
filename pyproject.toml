@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knowledger"
-version = "0.2.0"
+version = "0.3.0"
 description = "Document-first team knowledge base: ingest docs → machine index cards → human review → compiled ontology snapshot"
 readme = "README.md"
 license = { text = "MIT" }

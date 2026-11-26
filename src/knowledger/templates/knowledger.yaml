@@ -28,3 +28,7 @@ status_enum: [active, deprecated, draft]
 
 # 所有实例公共必填。sources 必须是 [{doc, version}] 形式，不能是自由文本。
 common_required: [id, type, name, owner, block, status, sources]
+
+# OCR 插件点（可选）：.doc/.pdf 正文靠它。任何「吃文件路径、stdout 吐正文」的命令，
+# %s 处替换为文件路径。参考实现在仓内 plugins/ocr_deepseek.py（需 DEEPSEEK_API_KEY）。
+# ocr_cmd: "python3 /path/to/ocr_deepseek.py %s"

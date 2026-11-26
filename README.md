@@ -47,7 +47,7 @@ knowledger 用一条流水线把两端焊住：进不要求先建 schema，出�
                                   永远不挂 blocks/ raw/   材料不是规则
 ```
 
-\* 待做：旁车 .md（docx/xlsx）/ OCR 插件 / 飞书插件。
+\* 旁车 .md（docx/xlsx）、OCR 插件（ocr_cmd）、飞书（lark 子命令）均已落地；OCR/飞书仍是外部命令，核心包零依赖不变。
 
 ## 亮点
 
@@ -108,6 +108,7 @@ knowledger graph              # Mermaid 文本——贴飞书 / Notion / Obsidia
 knowledger open               # 待办总览：待认领 / 需 OCR / 待审边
 knowledger recall "怎么取消订单"   # 给 LLM 的材料包，不是规则
 knowledger drift              # 哪些源文档变了 → 待重审
+knowledger lark https://xx.feishu.cn/wiki/XXX   # 飞书文档经 lark-cli 拉 markdown 进 raw/feishu/
 ```
 
 ## 审核动线（Agent 视角，走 MCP）
@@ -185,9 +186,10 @@ common_required: [id, type, name, owner, block, status, sources]
 | 输入 | 抽取？ | 方式 |
 |---|---|---|
 | .md .txt .html .csv .json | ✅ 全文 | 直接 |
-| .docx .xlsx | 计划中，零依赖（zipfile + xml） | 旁车 `.md` |
-| .doc .pdf | 仅建卡，正文空 | 需 OCR——留了插件点（未实现） |
-| 飞书 / Notion 链接 | 计划中 | 需凭证——不进核心包 |
+| .docx .xlsx | ✅ 全文 | 零依赖（zipfile + xml），旁车 `.md` 缓存，可手工修正 |
+| .doc .pdf | 仅建卡，正文空 | 配 `ocr_cmd` 插件点即自动 OCR（参考实现 plugins/ocr_deepseek.py） |
+| 飞书文档 | ✅ markdown | `knowledger lark <url>`（外部 lark-cli，不进核心包） |
+| Notion | ❌ 不做 | — |
 | 图片 / 音频 / 视频 | ❌ 拒绝 | — |
 
 ## 方法 vs 实现
@@ -202,7 +204,7 @@ common_required: [id, type, name, owner, block, status, sources]
 ## 不做的事
 
 - 不做拖线连边的图编辑器。审核者是领域专家不是本体工程师，拖线产生的方向错误比表单多。
-- 核心包不带 OCR、飞书/Notion 抓取、向量库——每个都要凭证或依赖。插件点已留。
+- 核心包不带 OCR、飞书抓取、向量库——每个都要凭证或外部命令。插件点已留（`ocr_cmd` / `knowledger lark` 走外部 lark-cli）；Notion 明确不做。
 - 不做实时协作。git 冲突就是协作。
 - 不做 OWL 推理机。九种关系类型，人审比配推理机快。
 

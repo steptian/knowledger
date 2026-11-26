@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>__NAME__ · 关系图</title>
+<style>
+  :root{--ink:#111418;--ink2:#454b53;--ink3:#6e767f;--rule:#e3e6ea;--blue:#1b4d8f;--amber:#9a6700;--amber-bg:#fff8e1;--green:#1a7f37;--green-bg:#eaf5ec;--red:#b42318}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Helvetica Neue",-apple-system,sans-serif;font-size:14px;line-height:1.6;color:var(--ink);background:#fff;height:100vh;display:grid;grid-template-columns:1fr 400px}
+  main{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--rule)}
+  .bar{display:flex;gap:12px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+  .bar h1{font-size:16px;font-weight:700;margin-right:auto}
+  .bar input{width:220px;padding:7px 10px;border:1px solid var(--rule);font:inherit;font-size:13px}
+  .bar select{padding:7px 10px;border:1px solid var(--rule);font:inherit;font-size:13px;background:#fff}
+  .bar .stat{font-size:12.5px;color:var(--ink3)}
+  .bar .stat b{color:var(--ink)}
+  svg{flex:1;width:100%;height:auto;cursor:grab;background:#fafbfc}
+  svg:active{cursor:grabbing}
+  .node{cursor:pointer}
+  .node rect{fill:#fff;stroke:var(--ink);stroke-width:1.2}
+  .node.dim{opacity:.25}
+  .node.sel rect{stroke:var(--blue);stroke-width:2.5;fill:#f5f8fc}
+  .node.pending rect{stroke:var(--amber);stroke-dasharray:4 3}
+  .node text{font-size:12px;pointer-events:none}
+  .node .t{font-size:10px;fill:var(--ink3)}
+  .edge{stroke:#9aa5b1;stroke-width:1.2;fill:none;marker-end:url(#arr)}
+  .edge.dim{opacity:.15}
+  .edge.hl{stroke:var(--blue);stroke-width:2.2}
+  .edge.unrev{stroke:var(--amber);stroke-dasharray:5 3}
+  .elabel{font-size:11px;fill:var(--ink2);paint-order:stroke;stroke:#fafbfc;stroke-width:3px}
+  .elabel.unrev{fill:var(--amber)}
+  aside{overflow:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  aside h2{font-size:18px;font-weight:750;line-height:1.3}
+  .kv{font-size:12.5px;color:var(--ink2);line-height:1.9}
+  .kv b{color:var(--ink)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border:1px solid var(--rule);color:var(--ink2);margin-right:6px}
+  .tag.blk{border-color:var(--ink3);color:var(--ink)}
+  .tag.ok{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+  .tag.wait{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+  .tag.draft{border-color:var(--ink3);border-style:dashed}
+  .sec{font-size:11.5px;font-weight:800;letter-spacing:.08em;color:var(--ink3);margin-top:4px}
+  .def{font-size:14px;border-left:3px solid var(--rule);padding:6px 12px;color:var(--ink2)}
+  .cands{list-style:none;font-size:12.5px;color:var(--ink2)}
+  .cands li{padding:3px 0;border-bottom:1px dotted var(--rule)}
+  .edge-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:8px 10px;border:1px solid var(--rule);font-size:12.5px}
+  .edge-row.unrev{border-color:var(--amber);background:var(--amber-bg)}
+  .edge-row .arrow{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink)}
+  .who{font-size:11.5px;color:var(--ink3)}
+  pre{background:#f6f7f9;border:1px solid var(--rule);padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:var(--ink);position:relative}
+  pre .cp{position:absolute;top:6px;right:6px;font-size:11px;border:1px solid var(--rule);background:#fff;padding:1px 7px;cursor:pointer;font-family:inherit;color:var(--ink2)}
+  pre .cp:hover{background:var(--ink);color:#fff}
+  .hint{font-size:12px;color:var(--ink3);line-height:1.6}
+  .hint b{color:var(--ink2)}
+  .back{font-size:12px;color:var(--blue);cursor:pointer}
+  details summary{font-size:13px;font-weight:700;cursor:pointer;padding:4px 0}
+  details summary b{color:var(--ink)}
+  .empty{color:var(--ink3);font-size:13px}
+  @media (max-width:900px){body{grid-template-columns:1fr}aside{border-top:1px solid var(--rule)}}
+</style>
+</head>
+<body>
+<main>
+  <div class="bar">
+    <h1>__NAME__ · 关系图</h1>
+    <input id="q" placeholder="搜节点名 / ID，回车定位">
+    <select id="blk"><option value="">全部块</option></select>
+    <span class="stat" id="stat"></span>
+  </div>
+  <svg id="svg" viewBox="0 0 1000 700"><defs><marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa5b1"/></marker></defs><g id="g"></g></svg>
+</main>
+<aside id="side"><div class="empty">点一个节点看定义、关系和可复制的 Agent 命令。</div></aside>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+  const G = JSON.parse(document.getElementById('data').textContent);
+  const svg = document.getElementById('svg'), g = document.getElementById('g'), side = document.getElementById('side');
+  const N = G.nodes, E = G.edges, byId = Object.fromEntries(N.map(n=>[n.id,n]));
+  const UNCLAIMED = G.unclaimed || [];   // staging cards nobody claimed yet: not drawn, listed in the overview
+  const W = 1000, H = 700;
+  let sel = null, filter = '';
+
+  // ---- layout: coarse radial by block, then a few repulsion passes. ≤80 nodes only. ----
+  const blocks = [...new Set(N.map(n=>n.block))];
+  // ring radius scales with node count so few nodes fill the canvas and many stay readable
+  const R = Math.min(W,H) * (N.length <= 6 ? 0.40 : N.length <= 20 ? 0.33 : 0.26);
+  const MINSEP = N.length <= 6 ? 170 : 95;      // repulsion range: wider when there's room
+  const LINK   = N.length <= 6 ? 260 : 140;     // spring rest length
+  N.forEach((n,i)=>{ const a = i/N.length*Math.PI*2 - Math.PI/2 + (n.block? blocks.indexOf(n.block)*0.3 : 0);
+    n.x = W/2 + Math.cos(a) * R + (Math.random()-0.5)*8; n.y = H/2 + Math.sin(a) * R + (Math.random()-0.5)*8; });
+  for (let k=0;k<160;k++){
+    for (let i=0;i<N.length;i++) for (let j=i+1;j<N.length;j++){
+      const a=N[i], b=N[j]; let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1;
+      if (d<MINSEP){const f=(MINSEP-d)/d*0.5; a.x-=dx*f; a.y-=dy*f; b.x+=dx*f; b.y+=dy*f;}
+    }
+    E.forEach(e=>{const a=byId[e.from], b=byId[e.to]; if(!a||!b)return; let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1; const f=(d-LINK)/d*0.08; a.x+=dx*f; a.y+=dy*f; b.x-=dx*f; b.y-=dy*f;});
+    N.forEach(n=>{n.x=Math.max(110,Math.min(W-110,n.x)); n.y=Math.max(60,Math.min(H-60,n.y));});
+  }
+  // ---- pan/zoom on the group ----
+  let vb={x:0,y:0,w:W,h:H};
+  function setVB(){svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`)}
+  svg.addEventListener('wheel',ev=>{ev.preventDefault(); const r=svg.getBoundingClientRect(); const mx=vb.x+ev.clientX/r.width*vb.w, my=vb.y+ev.clientY/r.height*vb.h; const s=ev.deltaY>0?1.12:0.89; vb={x:mx-(mx-vb.x)*s, y:my-(my-vb.y)*s, w:vb.w*s, h:vb.h*s}; setVB();},{passive:false});
+  let drag=null;
+  svg.addEventListener('mousedown',ev=>{if(ev.target.closest('.node'))return; drag={x:ev.clientX,y:ev.clientY,vb:{...vb}}});
+  window.addEventListener('mousemove',ev=>{if(!drag)return; const r=svg.getBoundingClientRect(); vb.x=drag.vb.x-(ev.clientX-drag.x)/r.width*vb.w; vb.y=drag.vb.y-(ev.clientY-drag.y)/r.height*vb.h; setVB();});
+  window.addEventListener('mouseup',()=>drag=null);
+
+  // ---- render ----
+  function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+  function render(){
+    g.innerHTML='';
+    const show = n => !filter || n.block===filter;
+    const deg = {}; E.forEach(e=>{deg[e.from]=(deg[e.from]||0)+1; deg[e.to]=(deg[e.to]||0)+1});
+    const nbrs = sel ? new Set([sel, ...E.filter(e=>e.from===sel||e.to===sel).flatMap(e=>[e.from,e.to])]) : null;
+    E.forEach((e,i)=>{
+      // semantic direction: `contains`/`has-parent` edges are declared on the child (direction=in),
+      // so the arrow should point parent → child. Swap ends for display.
+      const src = e.direction==='in' ? byId[e.to] : byId[e.from];
+      const dst = e.direction==='in' ? byId[e.from] : byId[e.to];
+      const a=src, b=dst; if(!a||!b||!show(a)||!show(b)||!show(byId[e.from])||!show(byId[e.to])) return;
+      const hl = sel && (e.from===sel||e.to===sel);
+      const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+      const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1, bend=N.length<=6?0.22:0.12, mx=(a.x+b.x)/2-dy*bend, my=(a.y+b.y)/2+dx*bend;
+      p.setAttribute('d',`M${a.x},${a.y} Q${mx},${my} ${b.x-dx/d*44},${b.y-dy/d*24}`);
+      p.setAttribute('class','edge'+(hl?' hl':nbrs&&!hl?' dim':'')+(e.reviewed?'':' unrev'));
+      g.appendChild(p);
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',mx); t.setAttribute('y',my-6); t.setAttribute('text-anchor','middle');
+      t.setAttribute('class','elabel'+(e.reviewed?'':' unrev')); t.textContent=e.rel+(e.reviewed?'':' ⏳');
+      g.appendChild(t);
+    });
+    N.forEach(n=>{
+      if(!show(n)) return;
+      const gr=document.createElementNS('http://www.w3.org/2000/svg','g');
+      gr.setAttribute('class','node'+(n.id===sel?' sel':'')+(nbrs&&!nbrs.has(n.id)?' dim':'')+(hasUnreviewed(n)?' pending':''));
+      gr.setAttribute('transform',`translate(${n.x},${n.y})`);
+      const sub=`${n.type} · ${n.id} · ${deg[n.id]||0}`;
+      const w=Math.max(84, n.name.length*13+20, sub.replace(/[^\x00-\xff]/g,'xx').length*6.4+20);   // box must fit the subtitle too
+      gr.innerHTML=`<rect x="${-w/2}" y="-22" width="${w}" height="44" rx="2"/><text x="0" y="-4" text-anchor="middle" font-weight="600">${esc(n.name)}</text><text class="t" x="0" y="13" text-anchor="middle">${esc(sub)}</text>`;
+      gr.onclick=()=>{sel=n.id; render(); panel();};
+      g.appendChild(gr);
+    });
+    const unrev=E.filter(e=>!e.reviewed).length;
+    document.getElementById('stat').innerHTML=`<b>${N.length}</b> 节点 · <b>${E.length}</b> 边 · <b style="color:${unrev?'var(--amber)':'var(--green)'}">${unrev}</b> 待审边` + (UNCLAIMED.length?` · <b style="color:var(--amber)">${UNCLAIMED.length}</b> 待认领`:'') + (N.length>80?' · <span style="color:var(--red)">超过 80 节点，建议按块过滤</span>':'');
+  }
+  function hasUnreviewed(n){return E.some(e=>!e.reviewed&&(e.from===n.id||e.to===n.id))}
+  function reviewTag(e){return e.reviewed?`<span class="tag ok">${esc(e.review.by||'')} 审过</span>`:`<span class="tag wait">待审</span>`}
+
+  // ---- side panel: definition + edges + copyable agent commands ----
+  function cmd(s){return `<pre>${esc(s)}<span class="cp" onclick="navigator.clipboard.writeText(this.parentNode.textContent.replace(/复制$/,''))">复制</span></pre>`}
+  function panel(){
+    const n=byId[sel]; if(!n){overview(); return}
+    const out=E.filter(e=>e.from===n.id), inn=E.filter(e=>e.to===n.id);
+    const pend=[...out,...inn].filter(e=>!e.reviewed);
+    const edges=[...out.map(e=>({...e,other:e.to,dir:'out'})),...inn.map(e=>({...e,other:e.from,dir:'in'}))];
+    side.innerHTML=`
+      <div class="back">← 待办总览</div>
+      <div><span class="tag blk">${esc(n.block)}</span><span class="tag ${n.status==='active'?'ok':'draft'}">${esc(n.status)}</span><span class="tag">${esc(n.type)}</span></div>
+      <h2>${esc(n.name)}</h2>
+      <div class="kv">id <b>${esc(n.id)}</b> · owner <b>${esc(n.owner)}</b>${n.src?`<br>源 <code>${esc(n.src)}</code>`:''}<br>卡 <code>${esc(n.card)}</code></div>
+      <div class="sec">定义</div><div class="def">${n.definition?esc(n.definition):'<span class="empty">（无 ## 定义 段）</span>'}</div>
+      ${n.candidates.length?`<div class="sec">候选条目（${n.candidates.length}）</div><ul class="cands">${n.candidates.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}
+      <div class="sec">关系（${edges.length} 条${pend.length?`，<span style="color:var(--amber)">${pend.length} 待审</span>`:''}）</div>
+      ${edges.length?edges.map(e=>`<div class="edge-row ${e.reviewed?'':'unrev'}"><div><div class="arrow">${e.dir==='in'?esc(e.other)+' →':esc(n.id)+' →'} <b>${esc(e.rel)}</b> ${e.dir==='in'?'→ '+esc(n.id):'→ '+esc(e.other)}</div><div class="who">${e.dir==='in'?'子卡声明':'本卡声明'} · 卡 ${esc(e.card)}</div></div><div>${reviewTag(e)}</div></div>`).join(''):'<div class="empty">没有边</div>'}
+      <div class="sec">交给 Agent</div>
+      <div class="hint">把下面这段贴给 WorkBuddy / 豆包 / 任意能跑 shell 的 Agent。它会列出证据、问你、然后执行。</div>
+      ${pend.length?cmd(`cd 到本知识库目录，运行：\nknowledger review edges --block ${n.block}\n对涉及 ${n.id} 的每条待审边：把两端定义和源文出现行念给我听，问我「对 / 错 / 错在哪端」；我说对就执行：\nknowledger approve ${n.id} <rel> <other> ok --by <我的名字> "<备注>"\n我说错就 verdict 用 wrong。审完跑 knowledger check 必须为 0 条不通过。`):cmd(`knowledger review edges --block ${n.block}\nknowledger recall "${esc(n.name)}"\nknowledger review tree`)}
+      <div class="sec">单独审某条边</div>
+      ${edges.map(e=>cmd(`knowledger approve ${e.card} ${e.rel} ${e.other} ok --by <你> "${esc(e.rel)} 正确"`)).join('')}
+    `;
+  }
+  // ---- overview: what is actually pending. The canvas draws claimed cards only; the queue lives here. ----
+  const nm=id=>byId[id]?byId[id].name:id;
+  function overview(){
+    sel=null; render();
+    const unrev=E.filter(e=>!e.reviewed), ocr=UNCLAIMED.filter(u=>u.needs_ocr), groups={};
+    UNCLAIMED.forEach(u=>{const b=u.block||'?';(groups[b]=groups[b]||[]).push(u)});
+    const claim=b=>cmd(`cd 到本知识库目录，运行：\nknowledger review cards --block ${b}\n对列出的每张 staging 卡：把「机器推断」和候选条目念给我听，问我归哪个块、owner 是谁；我答复后把 owner / block 改成我说的，把文件移到 blocks/<块>/。全部处理完运行 knowledger check，必须为 0 条不通过。`);
+    side.innerHTML=`
+      <div class="sec" style="margin-top:0">待办总览</div>
+      <div class="hint">图只画已认领的卡；待认领 / 需 OCR / 待审边列在下面。页面只负责看清和复制指令，改动走 CLI 或 Agent。</div>
+      <div class="sec">需 OCR（${ocr.length}）</div>
+      ${ocr.length?ocr.map(u=>`<div class="kv"><b>${esc(u.name)}</b> · ${esc(u.id)}<br><code>${esc(u.src)}</code></div>${cmd(`对 ${u.src} 做 OCR（knowledger 不带 OCR，用你的工具），把文本交给我后重跑 knowledger cards`)}`).join(''):'<div class="empty">没有待 OCR 的文档</div>'}
+      <div class="sec">待认领（${UNCLAIMED.length}）</div>
+      ${UNCLAIMED.length?Object.keys(groups).sort().map(b=>`<details><summary>${esc(b)} <b>${groups[b].length}</b></summary><ul class="cands">${groups[b].map(u=>`<li>${esc(u.name)} <span class="who">${esc(u.id)}</span>${u.needs_ocr?' <span class="tag wait">需 OCR</span>':''}</li>`).join('')}</ul>${claim(b)}</details>`).join(''):'<div class="empty">staging/ 里没有待认领的卡</div>'}
+      <div class="sec">待审边（${unrev.length}）</div>
+      ${unrev.length?cmd(`knowledger review edges`)+unrev.map(e=>{const a=e.direction==='in'?e.to:e.from, b=e.direction==='in'?e.from:e.to;
+        return `<div class="edge-row unrev"><div><div class="arrow">${esc(nm(a))} → <b>${esc(e.rel)}</b> → ${esc(nm(b))}</div><div class="who">卡 ${esc(e.card)}</div></div><div><span class="tag wait">待审</span></div></div>${cmd(`knowledger approve ${e.card} ${e.rel} ${e.to} ok --by <你> "${e.rel} 正确"`)}`}).join(''):'<div class="empty">没有待审的边</div>'}
+    `;
+  }
+  side.addEventListener('click',ev=>{if(ev.target.closest('.back'))overview();});
+  // ---- search / filter ----
+  const q=document.getElementById('q'), blk=document.getElementById('blk');
+  blocks.forEach(b=>blk.insertAdjacentHTML('beforeend',`<option value="${esc(b)}">${esc(b)}</option>`));
+  blk.onchange=()=>{filter=blk.value; render()};
+  q.onkeydown=ev=>{if(ev.key!=='Enter')return; const s=q.value.trim().toLowerCase(); const hit=N.find(n=>n.id.toLowerCase()===s||n.name.includes(q.value.trim()))||N.find(n=>n.name.toLowerCase().includes(s)); if(hit){sel=hit.id; render(); panel(); vb={x:hit.x-W/2*0.5, y:hit.y-H/2*0.5, w:W*0.5, h:H*0.5}; setVB();}};
+  render(); overview();
+})();
+</script>
+</body>
+</html>

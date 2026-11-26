@@ -1,0 +1,30 @@
+# knowledger.yaml — 唯一配置。格式是 JSON 兼容的 YAML 子集（流式集合），不需要 PyYAML。
+# 改完跑 `knowledger selftest` 确认没改坏。
+
+name: __NAME__
+
+# 块 = 维护单元，写权限跟着块走。owners 为 null = 无主 = 关 3 拒绝所有人写入。
+# hints 用来推断文档归哪个块（路径里出现块名优先，其次按关键词计分）。
+blocks:
+  product: { owners: [张三], hints: [需求, 功能, PRD, 场景], default_type: Feature }
+  engineering: { owners: [李四], hints: [API, 路由, Service, 部署, 数据库], default_type: Module }
+  marketing: { owners: null, hints: [文章, 关键字, 案例], default_type: Article }
+
+# 类型 = 实例的形状。required 是关 1 要查的字段；enum 是值域。
+types:
+  Doc:     { block: product,     required: [name, owner, status, sources, version] }
+  Feature: { block: product,     required: [name, owner, status, sources] }
+  Module:  { block: engineering, required: [name, owner, status, sources] }
+  Article: { block: marketing,   required: [title, owner, status, sources, reviewer] }
+
+# 关系名白名单。不在这里的 rel 会被关 1 拒绝。不设第 16 条。
+relations: [contains, applies_to, verified_by, cites, supersedes]
+
+# 文档里的「结构章节」名 —— 切候选条目时跳过（它们是文档目录，不是业务条目）。
+section_noise: [概述, 快速配置, 完整示例, 参考文档, 目录]
+
+# 实例生命周期。deprecated 不会进 snapshot/ 和 build/SNAPSHOT.md。
+status_enum: [active, deprecated, draft]
+
+# 所有实例公共必填。sources 必须是 [{doc, version}] 形式，不能是自由文本。
+common_required: [id, type, name, owner, block, status, sources]

@@ -1,0 +1,4 @@
+.DS_Store
+build/
+snapshot/
+ontology/upstream_fingerprint.json

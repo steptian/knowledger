@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "project": "kbase",
+  "updated_at": "2026-11-26T17:57:30+08:00",
+  "tasks": [],
+  "handoff": {
+    "text": "检查了 PyPI 上 knowledger 这个名字：主站和 TestPyPI 均返回 404 未被注册，GitHub 上 steptian/knowledger 仓也不存在且无突出同名项目，结论是该名可用；会话未做任何改名或代码变更。\n动过：TASKS.json、TASKS.md",
+    "next": "确认采用 knowledger 名称后执行全面改名（目录/CLI/MCP 前缀/README/测试），然后建 GitHub 仓 steptian/knowledger 并推送，PyPI 暂不发布。",
+    "done": [
+      "T184 查证 knowledger 名字可用性：PyPI/TestPyPI …"
+    ],
+    "at": "2026-11-26T17:57:30+08:00"
+  }
+}

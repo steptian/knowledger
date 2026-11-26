@@ -1,0 +1,4 @@
+标准术语,别名,定义,归属类目,易混淆项,责任人,版本,状态
+示例术语,样例术语;demo,把这一行换成你的第一个术语。别名列用分号分隔。,类目,—,张三,v0,已确认
+deprecated,已废弃;下线,实例状态：已被新版本替代，不得被 AI 召回,生命周期,active;draft,knowledger,v0,已确认
+active,有效;现行,实例状态：当前有效,生命周期,deprecated;draft,knowledger,v0,已确认

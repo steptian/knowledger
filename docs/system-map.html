@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>knowledger · 完整链路图</title>
+<style>
+  :root{--ink:#111418;--ink2:#454b53;--ink3:#6e767f;--rule:#e3e6ea;--blue:#1b4d8f;--blue-bg:#f5f8fc;--amber:#9a6700;--amber-bg:#fff8e1;--green:#1a7f37;--green-bg:#eaf5ec;--red:#b42318}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Helvetica Neue",-apple-system,"Microsoft YaHei",sans-serif;font-size:14px;line-height:1.55;color:var(--ink);background:#fff}
+  .page{max-width:1240px;margin:0 auto;padding:48px 44px 72px}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+  h1 span{display:block;font-size:15px;font-weight:500;color:var(--ink2);margin-top:4px}
+  .lede{margin-top:16px;font-size:15px;color:var(--ink2);max-width:90ch}
+  .lede b{color:var(--ink)}
+  h2{font-size:17px;font-weight:750;margin-top:40px;padding-bottom:6px;border-bottom:1.5px solid var(--ink);display:flex;gap:12px;align-items:baseline}
+  h2 .n{font-size:12px;font-weight:800;color:var(--blue)}
+
+  /* ---- the pipeline ---- */
+  .pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:18px;border:1px solid var(--ink)}
+  .stage{padding:16px 16px 14px;border-right:1px solid var(--ink);position:relative;background:#fff}
+  .stage:last-child{border-right:0}
+  .stage .k{font-size:11.5px;font-weight:800;letter-spacing:.08em;color:var(--ink3)}
+  .stage .d{font-family:ui-monospace,Menlo,monospace;font-size:17px;font-weight:700;margin:4px 0 8px}
+  .stage .w{font-size:13px;color:var(--ink2);min-height:56px}
+  .stage .arrow{position:absolute;right:-9px;top:50%;transform:translateY(-50%);width:18px;height:18px;background:#fff;border:1px solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:2}
+  .stage:last-child .arrow{display:none}
+  .stage.out{background:var(--blue-bg)}
+  .stage.out .d{color:var(--blue)}
+
+  .stage .det{list-style:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--rule)}
+  .stage .det li{font-size:12.5px;color:var(--ink2);line-height:1.6}
+  .stage .det b{color:var(--ink);font-weight:700;margin-right:4px}
+  .stage .det .mut{color:var(--ink3)}
+  .stage{display:flex;flex-direction:column}
+  .stage .w{flex:1}
+
+  /* ---- interaction lanes ---- */
+  .lanes{margin-top:18px;border:1px solid var(--ink)}
+  .lane{display:grid;grid-template-columns:150px 1fr;border-bottom:1px solid var(--ink)}
+  .lane:last-child{border-bottom:0}
+  .lane .who{padding:14px 16px;border-right:1px solid var(--ink);background:#fafbfc}
+  .lane .who .r{font-weight:750;font-size:14.5px}
+  .lane .who .s{font-size:12px;color:var(--ink3);margin-top:3px;line-height:1.5}
+  .lane .flow{padding:12px 16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .step{font-family:ui-monospace,Menlo,monospace;font-size:12px;padding:5px 9px;border:1px solid var(--rule);background:#fff;white-space:nowrap}
+  .step.r{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
+  .step.w{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+  .step.g{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+  .step.h{border-color:var(--ink3);color:var(--ink2);font-family:inherit;font-style:italic}
+  .sep{color:var(--ink3);font-size:12px}
+
+  /* ---- gates ---- */
+  .gates{margin-top:18px;border:1px solid var(--ink)}
+  .gate{display:grid;grid-template-columns:54px 150px 1fr 180px;border-bottom:1px solid var(--rule);font-size:13px}
+  .gate:last-child{border-bottom:0}
+  .gate > div{padding:9px 12px;border-right:1px solid var(--rule)}
+  .gate > div:last-child{border-right:0}
+  .gate .g{font-weight:800;color:var(--blue)}
+  .gate .t{font-weight:600}
+  .gate .d{color:var(--ink2)}
+  .gate .c{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink2)}
+  .gate.ext .g{color:var(--ink3)}
+  .gate.ext{background:#fafbfc}
+
+  /* ---- consumers ---- */
+  .cons{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+  .con{border:1px solid var(--rule);padding:14px 16px}
+  .con .t{font-weight:750;font-size:14.5px}
+  .con .h{font-size:12px;color:var(--ink3);margin-top:2px}
+  .con p{font-size:13px;color:var(--ink2);margin-top:8px}
+  .con code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#f6f7f9;padding:1px 5px}
+
+  .legend{margin-top:28px;display:flex;gap:18px;font-size:12.5px;color:var(--ink2);flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sq{width:12px;height:12px;border:1.5px solid var(--ink3);display:inline-block}
+  .sq.b{border-color:var(--blue);background:var(--blue-bg)}
+  .sq.a{border-color:var(--amber);background:var(--amber-bg)}
+  .sq.g{border-color:var(--green);background:var(--green-bg)}
+  .foot{margin-top:36px;border-top:5px solid var(--ink);padding-top:14px;font-size:12.5px;color:var(--ink3);line-height:1.7}
+  .foot b{color:var(--ink2)}
+  @media print{.page{padding:0}}
+</style>
+</head>
+<body><div class="page">
+
+<h1>knowledger · 完整链路图<span>文档进 → 索引卡出 → 人审 → 编译 → AI 只读快照 · 三个入口（CLI / MCP / HTML）· 六道机械关</span></h1>
+<p class="lede">核心是一条<b>单向数据链</b>：原样文档 → 机器索引卡 → 人审过的实例 → 编译产物。三件事只能往右走，不能跳：<b>没人审的卡不进编译，没人审的边不进快照</b>。所有编辑都发生在 <code>blocks/</code>，<code>raw/</code> 永远只增不改。</p>
+
+<h2><span class="n">01</span>数据链路</h2>
+
+<div class="pipe">
+  <div class="stage"><div class="k">STAGE 1 · 只增不改</div><div class="d">raw/</div>
+    <div class="w">原样文档，零改名零改结构。每个文件一个 sha 指纹。</div>
+    <ul class="det"><li><b>进什么</b>　.md .txt .html .csv .json 直接读</li><li><span class="mut">.docx .xlsx → 旁车 .md（待做）· .doc .pdf → 只建卡需 OCR · 飞书 / Notion → 需凭证，插件</span></li></ul>
+    <div class="arrow">→</div></div>
+  <div class="stage"><div class="k">STAGE 2 · 待审区</div><div class="d">staging/</div>
+    <div class="w">每份文档一张索引卡（type=Doc，status=draft）。owner=待审 → 不进编译。</div>
+    <ul class="det"><li><b>机器做</b>　推断归属块（路径优先 / 关键词计分）· 切候选条目（API 表行 / 三级标题 / 加粗要点）· 算源 sha</li></ul>
+    <div class="arrow">→</div></div>
+  <div class="stage"><div class="k">STAGE 3 · 唯一编辑面</div><div class="d">blocks/</div>
+    <div class="w">审过的实例，按块分目录。所有 frontmatter 编辑、approve、move 都在这里落盘。</div>
+    <ul class="det"><li><b>人审</b>　填 owner（关 3 查权限）· 写定义（对照源文）· 审边 ok / wrong（关 6，by 必须是块 owner）</li></ul>
+    <div class="arrow">→</div></div>
+  <div class="stage out"><div class="k">STAGE 4 · 可重建产物</div><div class="d">build/</div>
+    <div class="w">ontology.json · SNAPSHOT.md · rewrite.json · graph.json / .html / .mmd。deprecated 和 wrong 边物理排除。</div>
+    <ul class="det"><li><b>编译</b>　extract（实体 / 边 / 候选 / rewrite 表）· check 三关（格式 / 指纹漂移 / 回溯）· recall（词重叠 + 别名归一 + 一跳邻居）</li></ul></div>
+</div>
+
+<h2><span class="n">02</span>人或 Agent 怎么与它交互（三个入口，同一套动词）</h2>
+
+<div class="lanes">
+  <div class="lane">
+    <div class="who"><div class="r">CLI</div><div class="s">人和 Agent 共用。<br>从 kb 目录任意子目录运行，向上找 knowledger.yaml。</div></div>
+    <div class="flow">
+      <span class="step r">knowledger scan &lt;目录&gt;</span><span class="sep">→</span>
+      <span class="step r">knowledger cards</span><span class="sep">→</span>
+      <span class="step r">knowledger review cards</span><span class="sep">→</span>
+      <span class="step h">编辑卡：填 owner / 写定义 / 移进 blocks/</span><span class="sep">→</span>
+      <span class="step r">knowledger review edges</span><span class="sep">→</span>
+      <span class="step w">knowledger approve &lt;card&gt; &lt;rel&gt; &lt;other&gt; ok --by &lt;owner&gt;</span><span class="sep">→</span>
+      <span class="step g">knowledger check</span><span class="sep">→</span>
+      <span class="step g">knowledger build</span><span class="sep">→</span>
+      <span class="step r">knowledger recall "…" · knowledger graph · knowledger review tree · knowledger drift</span>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="who"><div class="r">MCP</div><div class="s">任何 MCP 客户端：WorkBuddy / 豆包 / Claude / Cursor。<br><code>knowledger serve</code>（stdio），需 <code>knowledger[mcp]</code>。</div></div>
+    <div class="flow">
+      <span class="step r">knowledger_status</span><span class="sep">谁拥有哪个块 →</span>
+      <span class="step r">knowledger_review_edges</span><span class="sep">待审边 + 两端定义 + 源文行 →</span>
+      <span class="step h">Agent 念给 owner 听，owner 一个字：对 / 错 / 错在哪端</span><span class="sep">→</span>
+      <span class="step w">knowledger_approve(by=owner)</span><span class="sep">非 owner 被拒，error 带 hint →</span>
+      <span class="step g">knowledger_check</span><span class="sep">→</span>
+      <span class="step g">knowledger_build</span><span class="sep">→</span>
+      <span class="step r">knowledger_recall · knowledger_get · knowledger_tree · knowledger_drift</span>
+      <span class="sep">&nbsp;|&nbsp;其他写：</span><span class="step w">knowledger_move · knowledger_set_definition · knowledger_add_card</span>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="who"><div class="r">HTML</div><div class="s">人想「一眼看全貌」时。<br><code>knowledger open</code>，单文件零依赖。</div></div>
+    <div class="flow">
+      <span class="step r">搜节点 / 按块过滤 / 缩放</span><span class="sep">→</span>
+      <span class="step h">点节点 → 右侧：定义 · 候选条目 · 所有边（待审标黄）</span><span class="sep">→</span>
+      <span class="step h">「交给 Agent」块：自动拼好一段指令</span><span class="sep">→</span>
+      <span class="step w">复制 → 贴给 WorkBuddy / 豆包</span><span class="sep">→</span>
+      <span class="sep">Agent 走 MCP 那条线。<b>图上没有 ✅❌ 按钮</b>——操作全走 CLI / MCP。</span>
+    </div>
+  </div>
+</div>
+
+<h2><span class="n">03</span>六道机械关：谁在哪一步拦什么</h2>
+
+<div class="gates">
+  <div class="gate"><div class="g">关 1</div><div class="t">结构完整</div><div class="d">必填齐；sources 必须是 [{doc, version}]；关系名在白名单内</div><div class="c">check · build</div></div>
+  <div class="gate"><div class="g">关 2</div><div class="t">术语漂移 + 源漂移</div><div class="d">实例名未进 glossary → 待归一队列；raw/ 源 sha 变了 → 待重审（只报不拦）</div><div class="c">lint · drift · build[指纹]</div></div>
+  <div class="gate"><div class="g">关 3</div><div class="t">块归属写入</div><div class="d">owner 必须在该块 owners 里；owners=null 的块谁都不能写</div><div class="c">check · add · move</div></div>
+  <div class="gate"><div class="g">关 4</div><div class="t">时效有效</div><div class="d">deprecated 实例物理移出快照（进 _archive/），AI 看不到</div><div class="c">snapshot · build</div></div>
+  <div class="gate ext"><div class="g">关 5</div><div class="t">审批生效</div><div class="d">不在包里——由载体承担（git PR / 分支保护）。</div><div class="c">外部</div></div>
+  <div class="gate"><div class="g">关 6</div><div class="t">边已人审</div><div class="d">active 实例的每条边必须有 review: ok|wrong；approve 的 by 必须是该块 owner（Agent 自编名被拒）；wrong 的边不进产物</div><div class="c">check · build · approve</div></div>
+</div>
+
+<h2><span class="n">04</span>谁消费 build/</h2>
+
+<div class="cons">
+  <div class="con"><div class="t">AI 工具（只读）</div><div class="h">WorkBuddy / 豆包 / 任意 Agent 挂目录</div><p>挂 <code>build/SNAPSHOT.md</code>。按块分、deprecated 已排除、每条带 owner 和源。<b>永远不挂 blocks/ 和 raw/</b>——那是编辑面和原件。</p></div>
+  <div class="con"><div class="t">检索层（P5 接入）</div><div class="h">query rewrite + 一跳邻居</div><p><code>rewrite.json</code> 做别名→标准术语归一；<code>ontology.json</code> 的 edges 做邻居扩展。召回算法现在是词重叠，可换向量，<b>材料不是规则</b>。</p></div>
+  <div class="con"><div class="t">人看全貌</div><div class="h">graph.html / Mermaid</div><p><code>graph.html</code> 单文件；<code>graph.mmd</code> 贴飞书画板 / Notion / Obsidian。待审边在两处都标 ⏳。</p></div>
+</div>
+
+<div class="legend">
+  <span><span class="sq b"></span>读 / 导航</span>
+  <span><span class="sq a"></span>写（需权限：块 owner）</span>
+  <span><span class="sq g"></span>校验 / 编译（机械关）</span>
+  <span><span class="sq"></span>人的判断（不可跳过）</span>
+</div>
+
+<div class="foot">
+  <b>不变量</b>　① raw/ 只增不改；② 没人审 owner 的卡不进编译；③ 没人审的边不进快照（关 6）；④ 审边的 by 必须是块 owner（和关 3 同一张表）；⑤ build/ 全部可重建，别手改。<br>
+  <b>依据</b>　从 ~/Documents/iLike/Python/feilian/knowledger/src/knowledger/ 的 cli.py / ingest.py / core.py / compile.py / review.py / mcp_server.py 实扫（2026-11-24）。19 个 CLI 子命令，12 个 MCP 工具，一一对应。<br>
+  <b>未做</b>　关 5 审批（载体层）· docx/xlsx 提取器 · OCR / 飞书插件点 · 树拖拽（已改为 knowledger_move）。
+</div>
+
+</div></body></html>

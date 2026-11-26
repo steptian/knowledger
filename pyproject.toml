@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "knowledger"
+version = "0.2.0"
+description = "Document-first team knowledge base: ingest docs → machine index cards → human review → compiled ontology snapshot"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["knowledge-base", "ontology", "markdown", "frontmatter", "governance"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business",
+  "Topic :: Text Processing :: Markup :: Markdown",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0,<2"]
+test = ["pytest"]
+
+[project.scripts]
+knowledger = "knowledger.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/steptian/knowledger"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+knowledger = ["templates/*"]

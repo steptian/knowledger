@@ -53,9 +53,22 @@ def extract_docx(p: Path) -> str:
         st = para.find(f"{W}pPr/{W}pStyle")
         m = re.match(r"(?:[Hh]eading\s*)?(\d)$", st.get(f"{W}val", "")) if st is not None else None
         text = "".join(t.text or "" for t in para.iter(f"{W}t")).strip()
+        text = re.sub(r"\s*\r?\n\s*", " ", text)   # 单元格/段落内换行会切断下游 pipe 行与标题匹配
         if text:
             out.append(("#" * int(m.group(1)) + " " + text) if m and 1 <= int(m.group(1)) <= 6 else text)
     return "\n\n".join(out)
+
+
+def _xlsx_cell(c, shared: list[str]) -> str:
+    """单个 xlsx 单元格 → 文本。sharedStrings / 内联字符串 / 数值（公式取缓存值）。"""
+    NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    if c.get("t") == "s":
+        v = c.find(f"{NS}v")
+        return shared[int(v.text)] if v is not None and v.text else ""
+    if c.get("t") == "inlineStr":
+        return "".join(t.text or "" for t in c.iter(f"{NS}t"))
+    v = c.find(f"{NS}v")
+    return v.text if v is not None and v.text else ""
 
 
 def extract_xlsx(p: Path) -> str:
@@ -63,33 +76,32 @@ def extract_xlsx(p: Path) -> str:
     import xml.etree.ElementTree as ET
     import zipfile
     NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-    R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}Id"
+    RN = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+    def rid(el) -> str:            # 属性大小写兜底：标准是 r:id（小写），部分生成器写 Id
+        return el.get(f"{RN}id") or el.get(f"{RN}Id") or ""
     with zipfile.ZipFile(p) as z:
         shared = []
         if "xl/sharedStrings.xml" in z.namelist():
             sroot = ET.fromstring(z.read("xl/sharedStrings.xml"))
             shared = ["".join(t.text or "" for t in si.iter(f"{NS}t")) for si in sroot.findall(f"{NS}si")]
         wb = ET.fromstring(z.read("xl/workbook.xml"))
-        rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
-        rmap = {r.get(R): r.get("Target") for r in rels}
+        names = z.namelist()
+        rmap = {}
+        if "xl/_rels/workbook.xml.rels" in names:
+            rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+            rmap = {rid(r): r.get("Target") for r in rels}
         out = []
         for s in wb.iter(f"{NS}sheet"):
-            target = rmap.get(s.get(R), "")
+            target = rmap.get(rid(s), "")
+            if not target:   # 部分生成器的 rels 缺 worksheet 条目：按 rIdN↔sheetN.xml 命名惯例回退
+                n = rid(s).removeprefix("rId")
+                target = f"worksheets/sheet{n}.xml" if f"xl/worksheets/sheet{n}.xml" in names else ""
             if not target:
                 continue
             path = target if target.startswith("xl/") else "xl/" + target.lstrip("/")
             lines = [f"## Sheet: {s.get('name')}", ""]
             for row in ET.fromstring(z.read(path)).iter(f"{NS}row"):
-                cells = []
-                for c in row.iter(f"{NS}c"):
-                    if c.get("t") == "s":
-                        v = c.find(f"{NS}v")
-                        cells.append(shared[int(v.text)] if v is not None and v.text else "")
-                    elif c.get("t") == "inlineStr":
-                        cells.append("".join(t.text or "" for t in c.iter(f"{NS}t")))
-                    else:
-                        v = c.find(f"{NS}v")
-                        cells.append(v.text if v is not None and v.text else "")
+                cells = [re.sub(r"\s*\r?\n\s*", " ", _xlsx_cell(c, shared)) for c in row.iter(f"{NS}c")]
                 if any(x.strip() for x in cells):
                     lines.append("| " + " | ".join(cells) + " |")
             if len(lines) > 2:

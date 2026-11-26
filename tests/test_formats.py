@@ -37,8 +37,8 @@ def make_docx(path: Path, paras: list[tuple[str | None, str]]) -> None:
         z.writestr("word/document.xml", xml)
 
 
-def make_xlsx(path: Path, sheet: str, rows: list[list[str | float]]) -> None:
-    """sharedStrings 方式：字符串进 sst，数字内联。"""
+def make_xlsx(path: Path, sheet: str, rows: list[list[str | float]], rels: bool = True) -> None:
+    """sharedStrings 方式：字符串进 sst，数字内联。rels=False 模拟缺 worksheet 关系的非标准生成器。"""
     strings, idx = [], {}
     grid = []
     for row in rows:
@@ -56,10 +56,11 @@ def make_xlsx(path: Path, sheet: str, rows: list[list[str | float]]) -> None:
         z.writestr("xl/workbook.xml",
                    f'<?xml version="1.0"?><workbook {S_NS} {R_NS}><sheets>'
                    f'<sheet name="{sheet}" sheetId="1" r:id="rId1"/></sheets></workbook>')
-        z.writestr("xl/_rels/workbook.xml.rels",
-                   '<?xml version="1.0"?><Relationships '
-                   'xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                   '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
+        if rels:
+            z.writestr("xl/_rels/workbook.xml.rels",
+                       '<?xml version="1.0"?><Relationships '
+                       'xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                       '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
         z.writestr("xl/sharedStrings.xml",
                    '<?xml version="1.0"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
                    + "".join(f"<si><t>{s}</t></si>" for s in strings) + "</sst>")
@@ -105,6 +106,26 @@ def test_xlsx_extraction(kb: Path, tmp_path: Path):
     body = next((kb / "staging").glob("*.md")).read_text(encoding="utf-8")
     assert "GET /orders" in body, "xlsx 里的 API 表行应被切为候选条目"
     assert "需 OCR" not in body
+
+
+def test_xlsx_without_worksheet_rels_falls_back(kb: Path, tmp_path: Path):
+    """非标准生成器的 rels 缺 worksheet 关系 → 按 rIdN↔sheetN.xml 惯例回退，不得静默丢 sheet。"""
+    make_xlsx(tmp_path / "docs" / "接口.xlsx", "核心业务", [["GET", "/a"]], rels=False)
+    run("scan", str(tmp_path / "docs"), cwd=kb)
+    r = run("cards", cwd=kb)
+    assert r.returncode == 0, r.stderr
+    sidecar = (kb / "raw" / "docs" / "接口.xlsx.md").read_text(encoding="utf-8")
+    assert "## Sheet: 核心业务" in sidecar and "| GET | /a |" in sidecar
+
+
+def test_xlsx_newline_in_cell_becomes_space(kb: Path, tmp_path: Path):
+    """真实数据单元格内含换行 → 清成空格，pipe 行不被切断。"""
+    make_xlsx(tmp_path / "docs" / "b.xlsx", "表", [["款名", "SKU"], ["长款名\n（括号注）", "蓝"]])
+    run("scan", str(tmp_path / "docs"), cwd=kb)
+    r = run("cards", cwd=kb)
+    assert r.returncode == 0, r.stderr
+    sidecar = (kb / "raw" / "docs" / "b.xlsx.md").read_text(encoding="utf-8")
+    assert "| 长款名 （括号注） | 蓝 |" in sidecar, "换行应被清成空格且同行成表"
 
 
 def test_ocr_cmd_fills_binary_card(kb: Path, tmp_path: Path):

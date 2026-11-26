@@ -12,5 +12,5 @@ wiki:
 
 ## 状态区
 status: v0.3.0（格式支持扩展）已开源
-next: 真实使用验证——外部数据实例跑通 认领→审核→编译 全链路；DeepSeek OCR 参考脚本待 DEEPSEEK_API_KEY 实测；内部待办见 docs/HANDOVER.md（本地保留，不入仓）
+next: DeepSeek OCR 实测（等 DEEPSEEK_API_KEY，真实 .doc 样本已备）→ WorkBuddy 真实认领（product 6 张找黄玉）→ 正也定 dev owner；细节 docs/HANDOVER.md（本地保留，不入仓）
 updated: 2026-11-26

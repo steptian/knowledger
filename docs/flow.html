@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>knowledger · 全流程一页图</title>
+<style>
+:root{--bg:#faf9f7;--card:#ffffff;--ink:#1c1917;--t2:#44403c;--t3:#78716c;--t4:#a8a29e;
+--line:#e7e5e4;--soft:#f5f5f4;--ac:#b45309;--ac2:#92400e;--ac-bg:#fef3c7;--ac-bg2:#fffbeb;
+--sh:0 1px 2px rgba(120,113,108,.06),0 1px 3px rgba(120,113,108,.04)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang SC","Helvetica Neue",-apple-system,"Microsoft YaHei",sans-serif;
+color:var(--ink);background:var(--bg);width:1560px;padding:44px 48px 36px}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+/* hero */
+.kicker{font-size:13px;font-weight:800;letter-spacing:.22em;color:var(--ac)}
+h1{font-size:38px;font-weight:800;letter-spacing:-.01em;margin-top:8px;line-height:1.25}
+.lede{margin-top:10px;font-size:15px;color:var(--t2)}
+
+/* 入口行 */
+.entries{display:flex;gap:14px;margin-top:26px;align-items:stretch}
+.entry{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;
+padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--sh)}
+.entry b{font-size:15px;font-weight:800}
+.entry span{font-size:13px;color:var(--t3)}
+.entry .dot{width:8px;height:8px;border-radius:50%;background:var(--ac);flex:none}
+
+/* 主轴 */
+.pipe{display:grid;grid-template-columns:230px 1fr 1fr 1fr 1fr;gap:0;margin-top:18px;
+border:1.5px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--card);box-shadow:var(--sh)}
+.stage{padding:18px 18px 16px;border-right:1px solid var(--line);position:relative}
+.stage:last-child{border-right:0}
+.stage .k{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--t4)}
+.stage .d{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:21px;font-weight:700;margin:5px 0 8px}
+.stage .w{font-size:13px;color:var(--t2);line-height:1.6}
+.stage .w b{color:var(--ink)}
+.stage .arrow{position:absolute;right:-11px;top:50%;transform:translateY(-50%);
+width:22px;height:22px;background:#fff;border:1.5px solid var(--ink);border-radius:50%;
+display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;z-index:2}
+.stage:last-child .arrow{display:none}
+.stage.src{background:var(--soft)}
+.stage.src .d{font-size:16px;line-height:1.7}
+.stage.src .fmt{display:block;font-size:12px;color:var(--t3);margin-top:2px}
+.stage.out{background:var(--ink);color:#fff}
+.stage.out .k{color:#a8a29e}.stage.out .d{color:#fff}.stage.out .w{color:#d6d3d1}
+.stage.out .w b{color:#fbbf24}
+.stage.review .d{color:var(--ac)}
+.stage.review{background:var(--ac-bg2)}
+
+/* 人审三件事 */
+.actions{display:flex;gap:10px;margin-top:14px;align-items:center}
+.actions .lab{font-size:12.5px;font-weight:800;color:var(--t3);letter-spacing:.08em;flex:none}
+.act{flex:1;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ac);
+border-radius:8px;padding:9px 14px;box-shadow:var(--sh)}
+.act b{font-size:14px}
+.act span{display:block;font-size:12px;color:var(--t3);margin-top:2px}
+
+/* 六道关 */
+.gates{display:flex;gap:10px;margin-top:26px}
+.gate{flex:1;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 12px;box-shadow:var(--sh)}
+.gate .g{display:inline-block;font-size:11px;font-weight:800;color:var(--ac2);background:var(--ac-bg);
+border-radius:5px;padding:2px 7px;letter-spacing:.06em}
+.gate .t{font-size:13.5px;font-weight:750;margin-top:6px}
+.gate .c{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;color:var(--t4);margin-top:3px}
+.sect{font-size:12px;font-weight:800;letter-spacing:.18em;color:var(--t3);margin-top:26px}
+.sect em{font-style:normal;color:var(--ac)}
+
+/* 出口三卡 */
+.cons{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px}
+.con{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;box-shadow:var(--sh)}
+.con .t{font-size:16px;font-weight:800}
+.con .t.warn{color:var(--ac2)}
+.con .h{font-size:12.5px;color:var(--t3);margin-top:2px}
+.con p{font-size:13px;color:var(--t2);margin-top:8px;line-height:1.65}
+.con code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px;
+background:var(--ac-bg);border-radius:4px;padding:1px 5px;color:var(--ac2)}
+
+/* 脚注 */
+.foot{margin-top:24px;padding-top:12px;border-top:1px solid var(--line);
+font-size:12px;color:var(--t4);display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<div class="kicker">KNOWLEDGER · 全流程一页图</div>
+<h1>文档进 → 索引卡出 → 人审 → 编译 → AI 只读快照</h1>
+<div class="lede">六道机械关把住质量，人只做裁决——机器切候选条目，没人从零手写 frontmatter。</div>
+
+<div class="entries">
+  <div class="entry"><div class="dot"></div><b>CLI</b><span>人 + Agent 共用，任意子目录向上找 knowledger.yaml</span></div>
+  <div class="entry"><div class="dot"></div><b>MCP</b><span>13 个工具，<span class="mono">knowledger serve</span>（stdio），任何 MCP 客户端</span></div>
+  <div class="entry"><div class="dot"></div><b>HTML</b><span>graph.html 待办总览，看 + 一键复制 Agent 指令</span></div>
+</div>
+
+<div class="pipe">
+  <div class="stage src">
+    <div class="k">STEP 0 · 任何文档</div>
+    <div class="d">scan 输入</div>
+    <div class="w">
+      <span class="fmt mono">.md .txt .html .csv .json</span>
+      <span class="fmt mono">.docx .xlsx　→ 旁车 .md</span>
+      <span class="fmt mono">.doc .pdf　→ ocr_cmd 插件</span>
+      <span class="fmt mono">飞书　→ lark 子命令</span>
+    </div>
+    <div class="arrow">›</div>
+  </div>
+  <div class="stage">
+    <div class="k">STAGE 1 · 只增不改</div>
+    <div class="d">raw/</div>
+    <div class="w">文档<b>原样</b>归档，零改名零改结构<br>sha 指纹防篡改；Notion 链接不进编译</div>
+    <div class="arrow">›</div>
+  </div>
+  <div class="stage">
+    <div class="k">STAGE 2 · 待审区</div>
+    <div class="d">staging/</div>
+    <div class="w">机器按 3 条正则切<b>候选条目</b>（API 表行 / 三级标题 / 加粗要点），建索引卡，<b>status=draft、owner=待审</b></div>
+    <div class="arrow">›</div>
+  </div>
+  <div class="stage review">
+    <div class="k">STAGE 3 · 唯一编辑面</div>
+    <div class="d">blocks/</div>
+    <div class="w">所有编辑落盘这里；<b>deprecated / wrong 边物理排除</b>，不进任何产物</div>
+    <div class="arrow">›</div>
+  </div>
+  <div class="stage out">
+    <div class="k">STAGE 4 · 可重建产物</div>
+    <div class="d">build/</div>
+    <div class="w"><b>SNAPSHOT.md</b>（AI 快照）· ontology.json · rewrite.json · graph.html/.mmd——全部可从 raw+blocks 重建</div>
+  </div>
+</div>
+
+<div class="actions">
+  <div class="lab">人审三件事<br>（staging → blocks）</div>
+  <div class="act"><b>① 认领 owner</b><span>claim 写责任人并归位到块；不在 owners 名单 = 关 3 拒绝</span></div>
+  <div class="act"><b>② 写定义</b><span>候选条目人审后升为实例，逐条补定义</span></div>
+  <div class="act"><b>③ 审边 ok | wrong</b><span>每条关系必须人审；wrong 的边不进产物</span></div>
+</div>
+
+<div class="sect">六道机械关 <em>——被代码拒绝，不是被希望拒绝</em></div>
+<div class="gates">
+  <div class="gate"><span class="g">关 1</span><div class="t">结构完整</div><div class="c">check · build</div></div>
+  <div class="gate"><span class="g">关 2</span><div class="t">术语 / 源漂移</div><div class="c">lint · drift</div></div>
+  <div class="gate"><span class="g">关 3</span><div class="t">块归属写入</div><div class="c">check · claim · build</div></div>
+  <div class="gate"><span class="g">关 4</span><div class="t">时效有效</div><div class="c">snapshot · build</div></div>
+  <div class="gate"><span class="g">关 5</span><div class="t">审批生效（载体：git PR）</div><div class="c">外部</div></div>
+  <div class="gate"><span class="g">关 6</span><div class="t">边已人审</div><div class="c">check · approve · build</div></div>
+</div>
+
+<div class="sect">谁消费 <em>build/</em></div>
+<div class="cons">
+  <div class="con">
+    <div class="t warn">AI 工具（只读）</div>
+    <div class="h">WorkBuddy / 豆包 / 任意 Agent</div>
+    <p>只挂 <code>build/SNAPSHOT.md</code>：按块分、deprecated 已排除、每条带 owner 和源。<b>永远不挂 blocks/ 和 raw/</b>——那是编辑面和原件。</p>
+  </div>
+  <div class="con">
+    <div class="t">检索层（advisory）</div>
+    <div class="h">query rewrite + 一跳邻居</div>
+    <p><code>rewrite.json</code> 做别名归一，<code>ontology.json</code> 做邻居扩展。召回算法现在是词重叠，可换向量——<b>材料不是规则</b>。</p>
+  </div>
+  <div class="con">
+    <div class="t">人看全貌</div>
+    <div class="h">graph.html / Mermaid</div>
+    <p><code>knowledger open</code> 待办总览：待认领 / 需 OCR / 待审边，选中节点直接复制 Agent 指令；<code>graph.mmd</code> 贴飞书画板。</p>
+  </div>
+</div>
+
+<div class="foot">
+  <span>OCR / 飞书是外部命令插件（ocr_cmd · lark-cli），核心包零第三方依赖</span>
+  <span class="mono">knowledger 0.3.0</span>
+</div>
+
+</body>
+</html>

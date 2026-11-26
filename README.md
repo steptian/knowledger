@@ -20,32 +20,7 @@ knowledger 用一条流水线把两端焊住：进不要求先建 schema，出�
 
 ## 全流程一页图
 
-```
-            ┌─────────────────── 三个入口，同一套动词 ───────────────────┐
-            │  CLI（人 + Agent）      MCP（13 工具）      HTML（看 + 复制）  │
-            └───────────────────────────┬────────────────────────────────┘
-                                        ▼
-  任何文档 ──scan──▶  raw/  ──cards──▶  staging/  ──review──▶  blocks/  ──build──▶  build/
-  .md .txt .html     原样            索引卡              唯一编辑面           可重建产物
-  .docx .xlsx*       只增不改        status=draft        所有编辑落盘这里     SNAPSHOT.md
-  .doc .pdf*         sha 指纹        owner=待审          ┌──────────────┐    rewrite.json
-  飞书 / Notion*                    → 不进编译           │ 人审三件事：  │    graph.json/.html/.mmd
-                                                        │  认领(owner) │    ontology.json
-                                                        │  写定义       │    deprecated / wrong 边
-                                                        │  审边 ok|wrong│    物理排除
-                                                        └──────┬───────┘
-                                                               │
-   六道关 ─────────────────────────────────────────────────────┤
-   关1 结构完整 ─ check/build      关4 时效有效 ─ snapshot/build  │
-   关2 术语/源漂移 ─ lint/drift    关5 审批生效 ─ 载体（git PR）   │
-   关3 块归属写入 ─ check/add/claim/build  关6 边已人审 ─ check/build/approve
-                                                               │
-                                        ┌──────────────────────┴──────────────────────┐
-                                        ▼                      ▼                      ▼
-                                  AI 工具（只读）          检索层（advisory）        人看全貌
-                                  挂 build/SNAPSHOT.md    rewrite + 一跳邻居     graph.html / Mermaid
-                                  永远不挂 blocks/ raw/   材料不是规则
-```
+![knowledger 全流程：文档进 → 索引卡出 → 人审 → 编译 → AI 只读快照](docs/flow.png)
 
 \* 旁车 .md（docx/xlsx）、OCR 插件（ocr_cmd）、飞书（lark 子命令）均已落地；OCR/飞书仍是外部命令，核心包零依赖不变。
 

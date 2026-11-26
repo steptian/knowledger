@@ -35,6 +35,45 @@ knowledger 用一条流水线把两端焊住：进不要求先建 schema，出�
 - **待办总览页。** `knowledger open` 打开即是：待认领 / 需 OCR / 待审边，每项附可复制的 Agent 指令。图只看不改（编辑走表单，WebVOWL 用户研究的结论）。
 - **核心零第三方依赖。** 一条 `pip install` 就能跑通全闭环；LLM / OCR / 飞书全是插件点，不是依赖。
 
+## 实测
+
+以下数据全部来自本仓真实运行，非估算：
+
+- **零依赖，装完就是全部**：干净 venv `pip install knowledger` 后，site-packages 里只有 knowledger 自己（0 个第三方包；MCP 支持是可选 extra）。核心 **1,948 行 Python**。
+- **性能**：一份 **2,600+ 行的真实业务 Excel**（sharedStrings / 内联字符串 / 数值 / 稀疏行列混合），`zipfile + ElementTree` 抽取耗时 **59 ms**，产出 3,689 行旁车 `.md`。
+- **26 个端到端测试**：六道关全链路、docx/xlsx 抽取与旁车过期重抽、坏文件不杀整轮、无主块拒绝写入。`python -m pytest tests/` 可复现。
+- **真实输出**（虚构数据，从 init 到 verify 一条龙，未删减错误路径）：
+
+  ```text
+  $ knowledger init . --name 订单知识库
+  $ knowledger scan docs && knowledger cards
+  cards：1 张 → staging/，候选条目 6 条          # 「概述」章节被跳过
+  $ knowledger claim D-3DA225F1 --by 李四
+  ✓ D-3DA225F1 认领：owner 李四 @ engineering → blocks/engineering/doc/D-3DA225F1.md
+  $ knowledger check                            # 未经人审的边被关 6 拦下
+      关6 边 D-3DA225F1 --contains--> BF-REFUND-01 未经人审（需 review.verdict: ok|wrong）
+  $ knowledger approve D-3DA225F1 contains BF-REFUND-01 ok --by 李四 "归属正确"
+  ✓ D-3DA225F1 --contains--> BF-REFUND-01  ok
+  $ knowledger check && knowledger build && knowledger verify
+  3 条实例，0 条不通过
+  build：3 张卡 → 1 条边 → 9 个 rewrite 词；0 个问题
+  三道关：0 个问题
+  ```
+
+  编译出的 AI 快照（节选，真实）：
+
+  ```markdown
+  ## engineering（2）
+
+  ### Feature BF-REFUND-01 · 退款规则
+  owner 李四 · status active
+
+  ### Doc D-3DA225F1 · orders-api.md
+  owner 李四 · status active · 源 `raw/docs/orders-api.md`
+  - `POST /orders` 创建订单
+  - 仅退款
+  ```
+
 ## 与同类项目的差异
 
 公开项目大致三簇（截至 2026-11 扫描）：**抠事实**（myKG、trikedb）、**审标注**（AnNER、Label Studio 族）、**喂 AI**（llms.txt 族）。knowledger 是少数把三段焊成一条带机械关流水线的：进不需要 LLM，出必有真人背书。
